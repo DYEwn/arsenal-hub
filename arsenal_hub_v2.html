@@ -147,26 +147,27 @@ header {
 .result-card {
   background:var(--surface); border:1px solid var(--border); border-radius:14px;
   margin-bottom:14px; overflow:hidden; animation:up 0.35s ease both;
-  transition:box-shadow 0.2s;
+  transition:box-shadow 0.2s; cursor:pointer;
 }
 .result-card:hover { box-shadow:0 4px 20px rgba(0,0,0,0.08); }
 @keyframes up { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:none} }
 .result-top {
   display:flex; align-items:center; justify-content:space-between;
   padding:12px 20px; background:var(--red-light); border-bottom:1px solid var(--border-red);
+  text-align:center;
 }
 .comp-tag {
   font-size:10px; font-weight:700; letter-spacing:0.18em; color:var(--red);
   background:#fff; padding:3px 10px; border-radius:4px; border:1px solid var(--border-red);
 }
-.result-date { font-size:12px; color:var(--text-muted); font-weight:500; }
+.result-date { font-size:12px; color:var(--text-muted); font-weight:500; text-align:center; flex:1; }
 .result-badge {
   font-size:10px; font-weight:800; padding:4px 10px; border-radius:6px; letter-spacing:0.12em;
 }
 .badge-W { background:#dcfce7; color:#15803d; }
 .badge-D { background:#fef9c3; color:#a16207; }
 .badge-L { background:#fee2e2; color:#dc2626; }
-.result-body { padding:20px 24px; }
+.result-body { padding:20px 24px; text-align:center; }
 .scoreline { display:flex; align-items:center; justify-content:center; gap:20px; margin-bottom:14px; }
 .team { display:flex; flex-direction:column; align-items:center; min-width:120px; }
 .team-name { font-size:14px; font-weight:700; letter-spacing:0.03em; }
@@ -174,7 +175,7 @@ header {
 .score-display { display:flex; align-items:center; gap:10px; }
 .score-num { font-family:'Bebas Neue'; font-size:68px; color:var(--text); line-height:1; }
 .score-dash { font-family:'Bebas Neue'; font-size:44px; color:var(--border); }
-.match-note { font-size:13px; color:var(--text-muted); line-height:1.7; border-top:1px solid var(--border); padding-top:12px; }
+.match-note { font-size:13px; color:var(--text-muted); line-height:1.7; border-top:1px solid var(--border); padding-top:12px; text-align:center; }
 
 /* STANDINGS */
 .standings-table { width:100%; border-collapse:collapse; background:var(--surface); border-radius:14px; overflow:hidden; border:1px solid var(--border); animation:up 0.3s ease both; }
@@ -212,6 +213,99 @@ header {
 .stat-value { font-family:'Bebas Neue'; font-size:52px; color:var(--red); line-height:1; }
 .stat-sub { font-size:12px; color:var(--text-muted); margin-top:6px; font-weight:500; line-height:1.4; }
 
+
+
+/* MATCH DETAIL MODAL */
+.modal-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,0.6);
+  z-index:1000; display:flex; align-items:center; justify-content:center;
+  padding:20px; backdrop-filter:blur(4px);
+  animation:fadeIn 0.2s ease;
+}
+.modal-overlay.hidden { display:none; }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+.modal {
+  background:var(--surface); border-radius:20px; width:100%; max-width:560px;
+  max-height:90vh; overflow-y:auto;
+  box-shadow:0 20px 60px rgba(0,0,0,0.3);
+  animation:slideUp 0.25s ease;
+}
+@keyframes slideUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:none} }
+.modal-header {
+  background:var(--red); padding:24px 28px 20px;
+  border-radius:20px 20px 0 0; position:relative;
+}
+.modal-close {
+  position:absolute; top:16px; right:16px;
+  background:rgba(255,255,255,0.2); border:none; color:#fff;
+  width:32px; height:32px; border-radius:50%; font-size:18px;
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  transition:background 0.2s;
+}
+.modal-close:hover { background:rgba(255,255,255,0.35); }
+.modal-competition { font-size:11px; letter-spacing:0.2em; color:rgba(255,255,255,0.7); font-weight:700; margin-bottom:6px; }
+.modal-date { font-size:13px; color:rgba(255,255,255,0.6); margin-bottom:16px; font-weight:500; }
+.modal-scoreline {
+  display:flex; align-items:center; justify-content:center;
+  gap:16px; margin-bottom:4px;
+}
+.modal-team { display:flex; flex-direction:column; align-items:center; gap:4px; flex:1; }
+.modal-team-name { font-size:13px; font-weight:700; color:#fff; text-align:center; line-height:1.2; }
+.modal-team-name.ars { color:#ffe066; }
+.modal-score { font-family:'Bebas Neue'; font-size:72px; color:#fff; line-height:1; letter-spacing:0.04em; }
+.modal-score-sep { font-family:'Bebas Neue'; font-size:48px; color:rgba(255,255,255,0.3); }
+.modal-result-badge {
+  text-align:center; font-size:11px; font-weight:800;
+  letter-spacing:0.15em; padding:4px 14px; border-radius:20px;
+  display:inline-block; margin-top:8px;
+}
+.modal-result-badge.W { background:#dcfce7; color:#15803d; }
+.modal-result-badge.D { background:#fef9c3; color:#a16207; }
+.modal-result-badge.L { background:#fee2e2; color:#dc2626; }
+
+.modal-body { padding:24px 28px; }
+.modal-section { margin-bottom:20px; }
+.modal-section-title {
+  font-size:10px; font-weight:700; letter-spacing:0.2em;
+  color:var(--text-dim); margin-bottom:12px;
+  padding-bottom:8px; border-bottom:1px solid var(--border);
+}
+.modal-row {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:8px 0; border-bottom:1px solid var(--border);
+  font-size:14px;
+}
+.modal-row:last-child { border-bottom:none; }
+.modal-row-label { color:var(--text-muted); font-weight:500; }
+.modal-row-val { color:var(--text); font-weight:700; }
+.modal-row-val.red { color:var(--red); }
+
+/* Halftime bar */
+.halftime-visual {
+  background:var(--bg); border-radius:10px; padding:16px;
+  margin-top:8px;
+}
+.ht-label { font-size:11px; color:var(--text-dim); letter-spacing:0.15em; font-weight:700; margin-bottom:10px; text-align:center; }
+.ht-scores { display:flex; justify-content:space-between; align-items:center; }
+.ht-score { text-align:center; }
+.ht-score-num { font-family:'Bebas Neue'; font-size:36px; color:var(--text); line-height:1; }
+.ht-score-team { font-size:11px; color:var(--text-dim); font-weight:600; letter-spacing:0.1em; margin-top:2px; }
+.ht-sep { font-family:'Bebas Neue'; font-size:24px; color:var(--border); }
+
+/* Flow bar */
+.flow-bar { margin-top:12px; }
+.flow-label { display:flex; justify-content:space-between; font-size:11px; color:var(--text-dim); margin-bottom:6px; font-weight:600; }
+.flow-track { height:8px; background:var(--border); border-radius:4px; overflow:hidden; display:flex; }
+.flow-home { background:var(--red); transition:width 0.5s ease; }
+.flow-away { background:#3b82f6; transition:width 0.5s ease; }
+.flow-numbers { display:flex; justify-content:space-between; font-size:12px; font-weight:700; margin-top:4px; }
+.flow-home-num { color:var(--red); }
+.flow-away-num { color:#3b82f6; }
+
+/* Loading modal */
+.modal-loading { text-align:center; padding:32px; }
+.modal-spinner { width:36px; height:36px; border:3px solid var(--red-mid); border-top-color:var(--red); border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 12px; }
+.modal-loading-text { font-size:14px; color:var(--text-muted); }
 
 /* PLAYERS */
 .players-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:14px; margin-bottom:20px; }
@@ -881,6 +975,153 @@ function copyCaption(i) {
     setTimeout(() => btns[i].innerHTML = '📋 COPY', 2000);
   });
 }
+
+// ── MATCH MODAL ──
+async function openMatch(matchId, homeTeam, awayTeam, homeScore, awayScore, competition, dateStr, isHome, stage) {
+  document.getElementById('matchModal').classList.remove('hidden');
+  document.getElementById('modalLoading').style.display = 'block';
+  document.getElementById('modalBody').style.display = 'none';
+  document.body.style.overflow = 'hidden';
+
+  try {
+    const data = await fdFetch(`/matches/${matchId}`);
+    renderModal(data, homeTeam, awayTeam, homeScore, awayScore, competition, dateStr, isHome, stage);
+  } catch(e) {
+    // Fallback with basic info
+    renderModalBasic(homeTeam, awayTeam, homeScore, awayScore, competition, dateStr, isHome, stage, null);
+  }
+}
+
+function renderModal(data, homeTeam, awayTeam, homeScore, awayScore, competition, dateStr, isHome, stage) {
+  const htHome = data.score?.halfTime?.home ?? '?';
+  const htAway = data.score?.halfTime?.away ?? '?';
+  const referee = data.referees?.find(r => r.type === 'REFEREE')?.name || 'N/A';
+  const venue = data.venue || (isHome ? 'Emirates Stadium' : 'Away');
+  const duration = data.score?.duration || 'REGULAR';
+  const arsScore = isHome ? homeScore : awayScore;
+  const oppScore = isHome ? awayScore : homeScore;
+  const res = arsScore > oppScore ? 'W' : arsScore < oppScore ? 'L' : 'D';
+  const oppName = isHome ? awayTeam : homeTeam;
+
+  // Flow bar — based on halftime vs fulltime scoring
+  const htArs = isHome ? htHome : htAway;
+  const htOpp = isHome ? htAway : htHome;
+  const sh2Ars = arsScore - (htArs === '?' ? 0 : htArs);
+  const sh2Opp = oppScore - (htOpp === '?' ? 0 : htOpp);
+
+  document.getElementById('modalLoading').style.display = 'none';
+  document.getElementById('modalBody').style.display = 'block';
+  document.getElementById('modalBody').innerHTML = `
+    <div class="modal-header">
+      <button class="modal-close" onclick="closeModalBtn()">✕</button>
+      <div class="modal-competition">${competition} ${stage ? '· ' + stage.replace(/_/g,' ') : ''}</div>
+      <div class="modal-date">${dateStr}</div>
+      <div class="modal-scoreline">
+        <div class="modal-team">
+          <div class="modal-team-name ${isHome?'ars':''}">${isHome?'ARSENAL':oppName.toUpperCase()}</div>
+        </div>
+        <div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span class="modal-score">${isHome?homeScore:awayScore}</span>
+            <span class="modal-score-sep">—</span>
+            <span class="modal-score">${isHome?awayScore:homeScore}</span>
+          </div>
+          <div style="text-align:center;">
+            <span class="modal-result-badge ${res}">${res==='W'?'WIN':res==='D'?'DRAW':'LOSS'}</span>
+          </div>
+        </div>
+        <div class="modal-team">
+          <div class="modal-team-name ${!isHome?'ars':''}">${!isHome?'ARSENAL':oppName.toUpperCase()}</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-body">
+
+      <div class="modal-section">
+        <div class="modal-section-title">HALF-TIME SCORE</div>
+        <div class="halftime-visual">
+          <div class="ht-label">HT</div>
+          <div class="ht-scores">
+            <div class="ht-score">
+              <div class="ht-score-num">${isHome?htHome:htAway}</div>
+              <div class="ht-score-team">${isHome?'ARSENAL':oppName.toUpperCase()}</div>
+            </div>
+            <div class="ht-sep">—</div>
+            <div class="ht-score">
+              <div class="ht-score-num">${isHome?htAway:htHome}</div>
+              <div class="ht-score-team">${!isHome?'ARSENAL':oppName.toUpperCase()}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-section">
+        <div class="modal-section-title">2ND HALF GOALS</div>
+        <div class="halftime-visual">
+          <div class="ht-scores">
+            <div class="ht-score">
+              <div class="ht-score-num" style="color:var(--red)">${sh2Ars >= 0 ? sh2Ars : '?'}</div>
+              <div class="ht-score-team">${isHome?'ARSENAL':oppName.toUpperCase()}</div>
+            </div>
+            <div class="ht-sep">—</div>
+            <div class="ht-score">
+              <div class="ht-score-num">${sh2Opp >= 0 ? sh2Opp : '?'}</div>
+              <div class="ht-score-team">${!isHome?'ARSENAL':oppName.toUpperCase()}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-section">
+        <div class="modal-section-title">MATCH INFO</div>
+        <div class="modal-row">
+          <span class="modal-row-label">Venue</span>
+          <span class="modal-row-val">${venue}</span>
+        </div>
+        <div class="modal-row">
+          <span class="modal-row-label">Duration</span>
+          <span class="modal-row-val">${duration === 'REGULAR' ? '90 mins' : duration}</span>
+        </div>
+        <div class="modal-row">
+          <span class="modal-row-label">Referee</span>
+          <span class="modal-row-val">${referee}</span>
+        </div>
+        <div class="modal-row">
+          <span class="modal-row-label">Arsenal</span>
+          <span class="modal-row-val red">${isHome ? '🏠 Home' : '✈️ Away'}</span>
+        </div>
+      </div>
+
+    </div>
+  `;
+}
+
+function renderModalBasic(homeTeam, awayTeam, homeScore, awayScore, competition, dateStr, isHome, stage, data) {
+  renderModal({score:{halfTime:{home:'?',away:'?'}}, referees:[], venue:null, score:{duration:'REGULAR',halfTime:{home:'?',away:'?'}}},
+    homeTeam, awayTeam, homeScore, awayScore, competition, dateStr, isHome, stage);
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('matchModal')) closeModalBtn();
+}
+function closeModalBtn() {
+  document.getElementById('matchModal').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', e => { if(e.key === 'Escape') closeModalBtn(); });
+
 </script>
+
+<!-- MATCH DETAIL MODAL -->
+<div class="modal-overlay hidden" id="matchModal" onclick="closeModal(event)">
+  <div class="modal" id="modalContent">
+    <div class="modal-loading" id="modalLoading">
+      <div class="modal-spinner"></div>
+      <div class="modal-loading-text">Loading match details...</div>
+    </div>
+    <div id="modalBody" style="display:none;"></div>
+  </div>
+</div>
+
 </body>
 </html>
