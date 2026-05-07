@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arsenal FC Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --red: #EF0107;
+  --red-dark: #C5000A;
+  --red-light: #fff0f0;
+  --red-mid: #fde8e8;
+  --white: #ffffff;
+  --bg: #f5f5f5;
+  --surface: #ffffff;
+  --border: #e8e8e8;
+  --border-red: rgba(239,1,7,0.2);
+  --text: #111111;
+  --text-muted: #666666;
+  --text-dim: #aaaaaa;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
+
+/* HEADER */
+header {
+  background:var(--red); position:sticky; top:0; z-index:200;
+  box-shadow:0 2px 16px rgba(239,1,7,0.3);
+}
+.header-top {
+  max-width:1200px; margin:0 auto; padding:0 28px; height:68px;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.brand { display:flex; align-items:center; gap:14px; }
+.brand-logo {
+  width:44px; height:44px; background:#fff; border-radius:8px;
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Bebas Neue'; font-size:20px; color:var(--red);
+}
+.brand-name { font-family:'Bebas Neue'; font-size:28px; color:#fff; letter-spacing:0.12em; line-height:1; }
+.brand-sub { font-size:10px; color:rgba(255,255,255,0.6); letter-spacing:0.2em; font-weight:500; margin-top:1px; }
+.live-pill {
+  display:flex; align-items:center; gap:6px;
+  background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.25);
+  padding:5px 14px; border-radius:20px; font-size:11px; color:#fff; font-weight:600; letter-spacing:0.1em;
+}
+.live-dot { width:6px; height:6px; border-radius:50%; background:#fff; animation:blink 1.4s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.25} }
+
+/* NAV */
+.nav-tabs { background:var(--red-dark); }
+.nav-inner { max-width:1200px; margin:0 auto; padding:0 28px; display:flex; }
+.nav-tab {
+  padding:13px 22px; font-size:13px; font-weight:600; letter-spacing:0.04em;
+  color:rgba(255,255,255,0.55); background:transparent; border:none; cursor:pointer;
+  border-bottom:3px solid transparent; transition:all 0.18s; display:flex; align-items:center; gap:7px;
+}
+.nav-tab:hover { color:rgba(255,255,255,0.85); }
+.nav-tab.active { color:#fff; border-bottom-color:#fff; }
+
+/* MAIN */
+.main { max-width:1200px; margin:0 auto; padding:28px; }
+
+/* API KEY BANNER */
+.api-banner {
+  background:#fffbeb; border:1px solid #fbbf24; border-radius:12px;
+  padding:16px 20px; margin-bottom:24px; display:flex; align-items:flex-start; gap:14px;
+}
+.api-banner.hidden { display:none; }
+.api-icon { font-size:22px; flex-shrink:0; }
+.api-banner-text {}
+.api-banner-title { font-size:14px; font-weight:700; color:#92400e; margin-bottom:4px; }
+.api-banner-body { font-size:13px; color:#78350f; line-height:1.6; }
+.api-input-row { display:flex; gap:8px; margin-top:10px; }
+.api-input {
+  flex:1; padding:9px 14px; border:1px solid #fbbf24; border-radius:8px;
+  font-size:13px; font-family:'Inter'; background:#fff; color:var(--text);
+  outline:none;
+}
+.api-input:focus { border-color:#f59e0b; box-shadow:0 0 0 3px rgba(251,191,36,0.2); }
+.api-save-btn {
+  padding:9px 18px; background:#f59e0b; color:#fff; border:none;
+  border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; font-family:'Inter';
+  transition:background 0.2s;
+}
+.api-save-btn:hover { background:#d97706; }
+.api-link { font-size:12px; color:#92400e; margin-top:6px; }
+.api-link a { color:var(--red); font-weight:600; }
+
+/* ACTION BAR */
+.action-bar {
+  display:flex; align-items:center; justify-content:space-between; margin-bottom:24px;
+}
+.fetch-btn {
+  display:flex; align-items:center; gap:9px;
+  background:var(--red); color:#fff; border:none; padding:11px 24px; border-radius:8px;
+  font-size:13px; font-weight:700; cursor:pointer; font-family:'Inter'; letter-spacing:0.04em;
+  box-shadow:0 4px 16px rgba(239,1,7,0.3); transition:all 0.2s;
+}
+.fetch-btn:hover { background:var(--red-dark); transform:translateY(-1px); }
+.fetch-btn:disabled { opacity:0.55; cursor:not-allowed; transform:none; box-shadow:none; }
+.fetch-icon { width:16px; height:16px; transition:transform 0.3s; }
+.fetch-icon.spin { animation:spin 0.8s linear infinite; }
+@keyframes spin { to{transform:rotate(360deg)} }
+.update-info { font-size:12px; color:var(--text-dim); font-weight:500; }
+.update-time { color:var(--text-muted); font-weight:600; }
+
+/* ERROR */
+.error-banner {
+  background:#fff0f0; border:1px solid #fca5a5; border-radius:10px;
+  padding:14px 18px; font-size:13px; color:#dc2626; margin-bottom:20px; display:none;
+}
+.error-banner.show { display:flex; align-items:center; gap:10px; }
+
+/* LOADING */
+.loading-card {
+  background:var(--surface); border:1px solid var(--border); border-radius:14px;
+  padding:48px 32px; text-align:center; margin-bottom:20px; display:none;
+}
+.loading-card.show { display:block; }
+.loader { display:flex; flex-direction:column; align-items:center; gap:16px; }
+.loader-ring {
+  width:44px; height:44px; border:3px solid var(--red-mid);
+  border-top-color:var(--red); border-radius:50%; animation:spin 0.75s linear infinite;
+}
+.loader-title { font-size:15px; font-weight:600; color:var(--text); }
+.loader-step { font-size:12px; color:var(--text-muted); font-weight:500; }
+.loader-bar { width:220px; height:3px; background:var(--border); border-radius:2px; overflow:hidden; }
+.loader-fill { height:100%; background:var(--red); border-radius:2px; animation:prog 1.8s ease-in-out infinite; }
+@keyframes prog { 0%{width:0;margin-left:0} 60%{width:70%;margin-left:0} 100%{width:0;margin-left:100%} }
+
+/* SECTIONS */
+.section { display:none; }
+.section.active { display:block; }
+
+/* EMPTY */
+.empty-state {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:14px; padding:64px 32px; text-align:center;
+}
+.empty-crest { font-family:'Bebas Neue'; font-size:72px; color:var(--border); margin-bottom:12px; }
+.empty-title { font-size:16px; font-weight:700; color:var(--text-muted); margin-bottom:6px; }
+.empty-body { font-size:13px; color:var(--text-dim); }
+
+/* RESULT CARDS */
+.result-card {
+  background:var(--surface); border:1px solid var(--border); border-radius:14px;
+  margin-bottom:14px; overflow:hidden; animation:up 0.35s ease both;
+  transition:box-shadow 0.2s;
+}
+.result-card:hover { box-shadow:0 4px 20px rgba(0,0,0,0.08); }
+@keyframes up { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:none} }
+.result-top {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:12px 20px; background:var(--red-light); border-bottom:1px solid var(--border-red);
+}
+.comp-tag {
+  font-size:10px; font-weight:700; letter-spacing:0.18em; color:var(--red);
+  background:#fff; padding:3px 10px; border-radius:4px; border:1px solid var(--border-red);
+}
+.result-date { font-size:12px; color:var(--text-muted); font-weight:500; }
+.result-badge {
+  font-size:10px; font-weight:800; padding:4px 10px; border-radius:6px; letter-spacing:0.12em;
+}
+.badge-W { background:#dcfce7; color:#15803d; }
+.badge-D { background:#fef9c3; color:#a16207; }
+.badge-L { background:#fee2e2; color:#dc2626; }
+.result-body { padding:20px 24px; }
+.scoreline { display:flex; align-items:center; justify-content:center; gap:20px; margin-bottom:14px; }
+.team { display:flex; flex-direction:column; align-items:center; min-width:120px; }
+.team-name { font-size:14px; font-weight:700; letter-spacing:0.03em; }
+.team-name.ars { color:var(--red); }
+.score-display { display:flex; align-items:center; gap:10px; }
+.score-num { font-family:'Bebas Neue'; font-size:68px; color:var(--text); line-height:1; }
+.score-dash { font-family:'Bebas Neue'; font-size:44px; color:var(--border); }
+.match-note { font-size:13px; color:var(--text-muted); line-height:1.7; border-top:1px solid var(--border); padding-top:12px; }
+
+/* STANDINGS */
+.standings-table { width:100%; border-collapse:collapse; background:var(--surface); border-radius:14px; overflow:hidden; border:1px solid var(--border); animation:up 0.3s ease both; }
+.standings-table th { background:var(--red); color:#fff; font-size:11px; font-weight:700; letter-spacing:0.12em; padding:12px 14px; text-align:center; }
+.standings-table th:first-child { text-align:left; padding-left:20px; }
+.standings-table td { padding:11px 14px; font-size:13px; text-align:center; border-bottom:1px solid var(--border); font-weight:500; }
+.standings-table td:first-child { text-align:left; padding-left:20px; }
+.standings-table tr:last-child td { border-bottom:none; }
+.standings-table tr.arsenal-row td { background:var(--red-light); color:var(--red); font-weight:700; }
+.pos-num { font-family:'Bebas Neue'; font-size:20px; color:var(--text-dim); }
+.club-cell { display:flex; align-items:center; gap:10px; }
+.club-dot { width:8px; height:8px; border-radius:50%; background:var(--border); }
+.club-dot.ars { background:var(--red); }
+
+/* NEWS CARDS */
+.news-card {
+  background:var(--surface); border:1px solid var(--border); border-radius:14px;
+  padding:22px 24px; margin-bottom:14px; animation:up 0.35s ease both; transition:all 0.2s;
+}
+.news-card:hover { border-color:var(--border-red); box-shadow:0 4px 20px rgba(239,1,7,0.07); }
+.news-source { font-size:10px; font-weight:700; letter-spacing:0.18em; color:var(--red); margin-bottom:8px; }
+.news-headline { font-size:16px; font-weight:700; color:var(--text); line-height:1.4; margin-bottom:8px; }
+.news-desc { font-size:13px; color:var(--text-muted); line-height:1.75; margin-bottom:10px; }
+.news-link { font-size:12px; color:var(--red); font-weight:600; text-decoration:none; }
+.news-link:hover { text-decoration:underline; }
+
+/* STATS */
+.stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:20px; }
+.stat-card {
+  background:var(--surface); border:1px solid var(--border); border-radius:14px;
+  padding:22px 20px; animation:up 0.3s ease both; transition:border-color 0.2s;
+}
+.stat-card:hover { border-color:var(--border-red); }
+.stat-label { font-size:10px; font-weight:700; letter-spacing:0.18em; color:var(--text-dim); margin-bottom:10px; }
+.stat-value { font-family:'Bebas Neue'; font-size:52px; color:var(--red); line-height:1; }
+.stat-sub { font-size:12px; color:var(--text-muted); margin-top:6px; font-weight:500; line-height:1.4; }
+
+/* CAPTIONS */
+.caption-card {
+  background:var(--surface); border:1px solid var(--border); border-radius:14px;
+  overflow:hidden; margin-bottom:14px; animation:up 0.35s ease both;
+}
+.caption-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 20px; background:var(--red-light); border-bottom:1px solid var(--border-red);
+}
+.caption-title { font-size:13px; font-weight:700; color:var(--red); }
+.copy-btn {
+  display:flex; align-items:center; gap:5px;
+  background:#fff; border:1px solid var(--border-red); color:var(--red);
+  padding:5px 14px; border-radius:6px; font-size:11px; font-weight:700;
+  cursor:pointer; font-family:'Inter'; letter-spacing:0.06em; transition:all 0.2s;
+}
+.copy-btn:hover { background:var(--red); color:#fff; }
+.caption-body { padding:20px 24px; }
+.caption-text { font-size:14px; color:var(--text); line-height:1.9; white-space:pre-line; margin-bottom:12px; }
+.caption-tags { font-size:13px; color:var(--red); font-weight:500; line-height:1.6; }
+
+/* SECTION TITLE */
+.section-title {
+  font-size:11px; font-weight:700; letter-spacing:0.2em;
+  color:var(--text-muted); margin-bottom:14px; margin-top:20px;
+  display:flex; align-items:center; gap:10px;
+}
+.section-title::after { content:''; flex:1; height:1px; background:var(--border); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <div class="brand">
+      <div class="brand-logo">AFC</div>
+      <div>
+        <div class="brand-name">ARSENAL FC HUB</div>
+        <div class="brand-sub">LIVE DATA DASHBOARD</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div class="live-pill"><div class="live-dot"></div>LIVE</div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.55);font-weight:500;" id="headerDate"></div>
+    </div>
+  </div>
+  <div class="nav-tabs">
+    <div class="nav-inner">
+      <button class="nav-tab active" onclick="switchTab('results',this)">⚽ Results & Table</button>
+      <button class="nav-tab" onclick="switchTab('news',this)">📰 News</button>
+      <button class="nav-tab" onclick="switchTab('stats',this)">📊 Stats</button>
+      <button class="nav-tab" onclick="switchTab('caption',this)">✍️ Captions</button>
+    </div>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- API KEY BANNER -->
+  <div class="api-banner" id="apiBanner">
+    <div class="api-icon">🔑</div>
+    <div class="api-banner-text">
+      <div class="api-banner-title">Football-Data.org API Key Required</div>
+      <div class="api-banner-body">
+        무료 API 키를 입력하면 실시간 경기 결과, 순위, 스탯을 불러올 수 있어요.<br>
+        키는 브라우저에 저장돼서 다음엔 다시 입력 안 해도 됩니다.
+      </div>
+      <div class="api-input-row">
+        <input class="api-input" id="apiKeyInput" type="text" placeholder="여기에 API 키 붙여넣기...">
+        <button class="api-save-btn" onclick="saveApiKey()">저장</button>
+      </div>
+      <div class="api-link">
+        무료 키 발급 → <a href="https://www.football-data.org/client/register" target="_blank">football-data.org 가입</a>
+        (이메일 인증 후 즉시 발급, 1분이면 됨!)
+      </div>
+    </div>
+  </div>
+
+  <!-- ACTION BAR -->
+  <div class="action-bar">
+    <button class="fetch-btn" id="fetchBtn" onclick="fetchAll()">
+      <svg class="fetch-icon" id="fetchIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+      </svg>
+      Fetch Latest
+    </button>
+    <div class="update-info">Updated: <span class="update-time" id="updateTime">—</span></div>
+  </div>
+
+  <!-- ERROR -->
+  <div class="error-banner" id="errorBanner">⚠️ <span id="errorMsg"></span></div>
+
+  <!-- LOADING -->
+  <div class="loading-card" id="loadingCard">
+    <div class="loader">
+      <div class="loader-ring"></div>
+      <div class="loader-title">Fetching Arsenal data...</div>
+      <div class="loader-step" id="loaderStep">Connecting to Football-Data.org...</div>
+      <div class="loader-bar"><div class="loader-fill"></div></div>
+    </div>
+  </div>
+
+  <!-- RESULTS TAB -->
+  <div class="section active" id="section-results">
+    <div class="empty-state" id="empty-results">
+      <div class="empty-crest">AFC</div>
+      <div class="empty-title">No data yet</div>
+      <div class="empty-body">API 키 입력 후 Fetch Latest를 눌러주세요</div>
+    </div>
+    <div id="results-content"></div>
+  </div>
+
+  <!-- NEWS TAB -->
+  <div class="section" id="section-news">
+    <div class="empty-state" id="empty-news">
+      <div class="empty-crest">AFC</div>
+      <div class="empty-title">No news yet</div>
+      <div class="empty-body">Fetch Latest를 눌러주세요</div>
+    </div>
+    <div id="news-content"></div>
+  </div>
+
+  <!-- STATS TAB -->
+  <div class="section" id="section-stats">
+    <div class="empty-state" id="empty-stats">
+      <div class="empty-crest">AFC</div>
+      <div class="empty-title">No stats yet</div>
+      <div class="empty-body">Fetch Latest를 눌러주세요</div>
+    </div>
+    <div id="stats-content"></div>
+  </div>
+
+  <!-- CAPTION TAB -->
+  <div class="section" id="section-caption">
+    <div class="empty-state" id="empty-caption">
+      <div class="empty-crest">AFC</div>
+      <div class="empty-title">No captions yet</div>
+      <div class="empty-body">Results & News를 먼저 불러오면 자동 생성돼요</div>
+    </div>
+    <div id="caption-content"></div>
+  </div>
+
+</div>
+
+<script>
+// ── CONFIG ──
+const ARSENAL_ID = 57;
+const SEASON = 2025;
+const PL_ID = 2021; // Premier League competition ID
+const UCL_ID = 2001;
+
+// ── INIT ──
+document.getElementById('headerDate').textContent =
+  new Date().toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+
+let API_KEY = 'managed_by_server';
+document.getElementById('apiBanner').classList.add('hidden');
+
+function saveApiKey() {
+  const val = document.getElementById('apiKeyInput').value.trim();
+  if (!val) return alert('API 키를 입력해주세요.');
+  API_KEY = val;
+  localStorage.setItem('fd_api_key', val);
+  document.getElementById('apiBanner').classList.add('hidden');
+}
+
+// ── TAB SWITCH ──
+function switchTab(tab, el) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('section-' + tab).classList.add('active');
+}
+
+// ── LOADING ──
+function setLoading(on, step='') {
+  document.getElementById('loadingCard').classList.toggle('show', on);
+  document.getElementById('fetchBtn').disabled = on;
+  const icon = document.getElementById('fetchIcon');
+  on ? icon.classList.add('spin') : icon.classList.remove('spin');
+  if (step) document.getElementById('loaderStep').textContent = step;
+}
+
+function showError(msg) {
+  const b = document.getElementById('errorBanner');
+  document.getElementById('errorMsg').textContent = msg;
+  b.classList.add('show');
+  setTimeout(() => b.classList.remove('show'), 8000);
+}
+
+// ── FETCH ALL ──
+async function fetchAll() {
+  if (!API_KEY) {
+    document.getElementById('apiBanner').classList.remove('hidden');
+    return showError('API 키를 먼저 입력해주세요!');
+  }
+  setLoading(true, 'Fetching recent matches...');
+
+  try {
+    // 로컬 프록시 서버 사용 (arsenal_server.py)
+    async function fdFetch(path) {
+      const res = await fetch(`/api${path}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || `API error ${res.status}`);
+      }
+      return res.json();
+    }
+
+    // 1. Recent matches
+    setLoading(true, 'Loading Arsenal recent matches...');
+    const matchData = await fdFetch(`/teams/${ARSENAL_ID}/matches?status=FINISHED&limit=5`);
+
+    // 2. Standings
+    setLoading(true, 'Loading Premier League table...');
+    let standData = null;
+    try { standData = await fdFetch(`/competitions/${PL_ID}/standings?season=${SEASON}`); } catch(e) { console.warn('Standings:', e); }
+
+    // 3. UCL matches
+    setLoading(true, 'Loading UCL data...');
+    let uclData = null;
+    try { uclData = await fdFetch(`/teams/${ARSENAL_ID}/matches?competitions=${UCL_ID}&status=FINISHED&limit=6`); } catch(e) { console.warn('UCL:', e); }
+
+    // 4. News via RSS proxy
+    setLoading(true, 'Fetching Arsenal news...');
+    const newsItems = await fetchNews();
+
+    // RENDER
+    renderResults(matchData.matches || [], standData, uclData?.matches || []);
+    renderNews(newsItems);
+    renderStats(matchData.matches || [], standData);
+    renderCaptions(matchData.matches || [], newsItems);
+
+    document.getElementById('updateTime').textContent =
+      new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+
+  } catch(err) {
+    console.error(err);
+    showError(err.message || 'Failed to fetch data.');
+  } finally {
+    setLoading(false);
+  }
+}
+
+// ── NEWS VIA RSS2JSON ──
+async function fetchNews() {
+  const feeds = [
+    'https://www.arsenal.com/rss/news',
+    'https://feeds.bbci.co.uk/sport/football/teams/arsenal/rss.xml'
+  ];
+  const rssProxy = 'https://api.rss2json.com/v1/api.json?rss_url=';
+  let items = [];
+
+  for (const feed of feeds) {
+    try {
+      const r = await fetch(rssProxy + encodeURIComponent(feed));
+      const d = await r.json();
+      if (d.items) {
+        items = items.concat(d.items.slice(0,5).map(it => ({
+          source: d.feed?.title || 'Arsenal',
+          title: it.title,
+          desc: it.description?.replace(/<[^>]*>/g,'').slice(0,200) + '...',
+          link: it.link,
+          date: it.pubDate
+        })));
+      }
+    } catch(e) { console.warn('RSS failed:', feed); }
+  }
+
+  return items.slice(0, 8);
+}
+
+// ── RENDER RESULTS ──
+function renderResults(matches, standData, uclMatches) {
+  const c = document.getElementById('results-content');
+  const e = document.getElementById('empty-results');
+
+  if (!matches.length && !standData) return;
+  e.style.display = 'none';
+
+  // Recent PL/Cup results
+  const plHtml = matches.reverse().map((m, i) => {
+    const isHome = m.homeTeam.id === ARSENAL_ID;
+    const ars = isHome ? m.homeTeam.name : m.awayTeam.name;
+    const opp = isHome ? m.awayTeam.name : m.homeTeam.name;
+    const arsScore = isHome ? m.score.fullTime.home : m.score.fullTime.away;
+    const oppScore = isHome ? m.score.fullTime.away : m.score.fullTime.home;
+    const res = arsScore > oppScore ? 'W' : arsScore < oppScore ? 'L' : 'D';
+    const label = res === 'W' ? 'WIN' : res === 'D' ? 'DRAW' : 'LOSS';
+    const dateStr = new Date(m.utcDate).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+
+    return `<div class="result-card" style="animation-delay:${i*0.06}s">
+      <div class="result-top">
+        <span class="comp-tag">${m.competition?.name || 'MATCH'}</span>
+        <span class="result-date">${dateStr}</span>
+        <span class="result-badge badge-${res}">${label}</span>
+      </div>
+      <div class="result-body">
+        <div class="scoreline">
+          <div class="team"><div class="team-name ${isHome?'ars':''}">${isHome?'ARSENAL':opp.toUpperCase()}</div></div>
+          <div class="score-display">
+            <span class="score-num">${isHome?arsScore:oppScore}</span>
+            <span class="score-dash">—</span>
+            <span class="score-num">${isHome?oppScore:arsScore}</span>
+          </div>
+          <div class="team"><div class="team-name ${!isHome?'ars':''}">${!isHome?'ARSENAL':opp.toUpperCase()}</div></div>
+        </div>
+        <div class="match-note">${isHome?'🏠 Home':'✈️ Away'} · ${m.venue || ''}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Standings table
+  let tableHtml = '';
+  if (standData?.standings) {
+    const table = standData.standings[0].table.slice(0,10);
+    tableHtml = `
+      <div class="section-title">PREMIER LEAGUE TABLE (TOP 10)</div>
+      <table class="standings-table">
+        <thead>
+          <tr>
+            <th>#</th><th style="text-align:left;padding-left:20px;">Club</th>
+            <th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${table.map(t => `
+            <tr class="${t.team.id===ARSENAL_ID?'arsenal-row':''}">
+              <td><span class="pos-num">${t.position}</span></td>
+              <td><div class="club-cell">
+                <div class="club-dot ${t.team.id===ARSENAL_ID?'ars':''}"></div>
+                ${t.team.id===ARSENAL_ID?`<strong>${t.team.shortName}</strong>`:t.team.shortName}
+              </div></td>
+              <td>${t.playedGames}</td><td>${t.won}</td><td>${t.draw}</td><td>${t.lost}</td>
+              <td>${t.goalDifference>0?'+':''}${t.goalDifference}</td>
+              <td><strong>${t.points}</strong></td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  // UCL results
+  let uclHtml = '';
+  if (uclMatches.length) {
+    uclHtml = `<div class="section-title">UCL 2025/26 RESULTS</div>` +
+      uclMatches.reverse().map((m,i) => {
+        const isHome = m.homeTeam.id === ARSENAL_ID;
+        const opp = isHome ? m.awayTeam.name : m.homeTeam.name;
+        const arsScore = isHome ? m.score.fullTime.home : m.score.fullTime.away;
+        const oppScore = isHome ? m.score.fullTime.away : m.score.fullTime.home;
+        const res = arsScore > oppScore ? 'W' : arsScore < oppScore ? 'L' : 'D';
+        const dateStr = new Date(m.utcDate).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+        return `<div class="result-card" style="animation-delay:${i*0.05}s">
+          <div class="result-top">
+            <span class="comp-tag">UCL</span>
+            <span class="result-date">${dateStr} · ${m.stage?.replace(/_/g,' ')}</span>
+            <span class="result-badge badge-${res}">${res==='W'?'WIN':res==='D'?'DRAW':'LOSS'}</span>
+          </div>
+          <div class="result-body">
+            <div class="scoreline">
+              <div class="team"><div class="team-name ${isHome?'ars':''}">${isHome?'ARSENAL':opp.toUpperCase()}</div></div>
+              <div class="score-display">
+                <span class="score-num">${isHome?arsScore:oppScore}</span>
+                <span class="score-dash">—</span>
+                <span class="score-num">${isHome?oppScore:arsScore}</span>
+              </div>
+              <div class="team"><div class="team-name ${!isHome?'ars':''}">${!isHome?'ARSENAL':opp.toUpperCase()}</div></div>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+  }
+
+  c.innerHTML = `<div class="section-title">RECENT RESULTS</div>` + plHtml + tableHtml + uclHtml;
+}
+
+// ── RENDER NEWS ──
+function renderNews(items) {
+  const c = document.getElementById('news-content');
+  const e = document.getElementById('empty-news');
+  if (!items.length) return;
+  e.style.display = 'none';
+  c.innerHTML = items.map((n,i) => `
+    <div class="news-card" style="animation-delay:${i*0.06}s">
+      <div class="news-source">${n.source?.toUpperCase()}</div>
+      <div class="news-headline">${n.title}</div>
+      <div class="news-desc">${n.desc}</div>
+      <a class="news-link" href="${n.link}" target="_blank">Read full article →</a>
+    </div>`).join('');
+}
+
+// ── RENDER STATS ──
+function renderStats(matches, standData) {
+  const c = document.getElementById('stats-content');
+  const e = document.getElementById('empty-stats');
+  if (!matches.length && !standData) return;
+  e.style.display = 'none';
+
+  // Calc from matches
+  const finished = matches.filter(m => m.status === 'FINISHED');
+  let w=0,d=0,l=0,gf=0,ga=0;
+  finished.forEach(m => {
+    const isHome = m.homeTeam.id === ARSENAL_ID;
+    const ars = isHome ? m.score.fullTime.home : m.score.fullTime.away;
+    const opp = isHome ? m.score.fullTime.away : m.score.fullTime.home;
+    gf += ars; ga += opp;
+    if(ars>opp) w++; else if(ars===opp) d++; else l++;
+  });
+
+  // From standings
+  let plPos='—', plPts='—', plPlayed='—';
+  if (standData?.standings) {
+    const row = standData.standings[0].table.find(t => t.team.id === ARSENAL_ID);
+    if(row) { plPos=row.position; plPts=row.points; plPlayed=row.playedGames; }
+  }
+
+  const winRate = finished.length ? Math.round((w/finished.length)*100) : 0;
+
+  c.innerHTML = `
+    <div class="section-title">SEASON STATS (FROM API)</div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">PL POSITION</div><div class="stat-value">${plPos}</div><div class="stat-sub">${plPts} points · ${plPlayed} played</div></div>
+      <div class="stat-card" style="animation-delay:.04s"><div class="stat-label">WIN RATE</div><div class="stat-value">${winRate}%</div><div class="stat-sub">Last ${finished.length} matches fetched</div></div>
+      <div class="stat-card" style="animation-delay:.08s"><div class="stat-label">GOALS SCORED</div><div class="stat-value">${gf}</div><div class="stat-sub">Last ${finished.length} matches</div></div>
+      <div class="stat-card" style="animation-delay:.12s"><div class="stat-label">GOALS CONCEDED</div><div class="stat-value">${ga}</div><div class="stat-sub">Last ${finished.length} matches</div></div>
+      <div class="stat-card" style="animation-delay:.16s"><div class="stat-label">WINS</div><div class="stat-value">${w}</div><div class="stat-sub">Draws: ${d} · Losses: ${l}</div></div>
+      <div class="stat-card" style="animation-delay:.2s"><div class="stat-label">UCL STATUS</div><div class="stat-value" style="font-size:32px;line-height:1.2">FINAL</div><div class="stat-sub">vs PSG · Budapest · 30 May 2026</div></div>
+    </div>`;
+}
+
+// ── RENDER CAPTIONS ──
+function renderCaptions(matches, news) {
+  const c = document.getElementById('caption-content');
+  const e = document.getElementById('empty-caption');
+  e.style.display = 'none';
+
+  // Get last result
+  const last = [...matches].reverse().find(m => m.status === 'FINISHED');
+  let resultCaption = '', resultTitle = 'Match Result Caption';
+  if (last) {
+    const isHome = last.homeTeam.id === ARSENAL_ID;
+    const opp = isHome ? last.awayTeam.name : last.homeTeam.name;
+    const arsScore = isHome ? last.score.fullTime.home : last.score.fullTime.away;
+    const oppScore = isHome ? last.score.fullTime.away : last.score.fullTime.home;
+    const res = arsScore > oppScore ? 'W' : arsScore < oppScore ? 'L' : 'D';
+    resultTitle = `Last Result vs ${opp}`;
+    if (res === 'W') {
+      resultCaption = `Arsenal ${arsScore}-${oppScore} ${opp}. 🔴\nThree points in the bag. That's what we do.\nThe Gunners keep pushing — every game, every moment counts.\nCOYG 💪`;
+    } else if (res === 'D') {
+      resultCaption = `Arsenal ${arsScore}-${oppScore} ${opp}.\nA point on the road. We move. 🔴\nNot the result we wanted, but the fight was there.\nCOYG — next one's ours. 💪`;
+    } else {
+      resultCaption = `Arsenal ${arsScore}-${oppScore} ${opp}.\nNot our day. We bounce back — always do. 🔴\nThe Gunners dust themselves off and go again.\nCOYG 💪`;
+    }
+  }
+
+  // News caption
+  const newsCaption = news.length ?
+    `📰 Latest from the Arsenal camp:\n\n${news[0].title}\n\nStay locked in, Gooners. Big things happening. 🔴` :
+    `📰 Stay up to date with everything Arsenal.\nFetch the latest to see what's happening at the club. 🔴`;
+
+  // UCL Final hype
+  const uclCaption = `Loaded Since 2006. Firing 2026. 🔴🔫\n\nBudapest. May 30th. One game.\nArsenal vs PSG — Europe's biggest stage.\n\n20 years of waiting ends NOW. 🏆\nThe Cannon is ready. Are you? 💥`;
+
+  const captions = [
+    { title: resultTitle, text: resultCaption, tags: '#Arsenal #Gunners #AFC #COYG #PremierLeague' },
+    { title: 'UCL Final Hype 🏆', text: uclCaption, tags: '#Arsenal #UCLFinal #Budapest2026 #Gunners #LoadedSince2006 #FiringIn2026' },
+    { title: 'News Update 📰', text: newsCaption, tags: '#Arsenal #Gunners #AFC #ArsenalNews #COYG' },
+  ];
+
+  c.innerHTML = captions.map((cap,i) => `
+    <div class="caption-card" style="animation-delay:${i*0.07}s">
+      <div class="caption-header">
+        <span class="caption-title">${cap.title}</span>
+        <button class="copy-btn" onclick="copyCaption(${i})">📋 COPY</button>
+      </div>
+      <div class="caption-body">
+        <div class="caption-text" id="ct-${i}">${cap.text}</div>
+        <div class="caption-tags" id="ch-${i}">${cap.tags}</div>
+      </div>
+    </div>`).join('');
+}
+
+function copyCaption(i) {
+  const text = document.getElementById('ct-'+i).textContent + '\n\n' + document.getElementById('ch-'+i).textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btns = document.querySelectorAll('.copy-btn');
+    btns[i].textContent = '✅ COPIED!';
+    setTimeout(() => btns[i].innerHTML = '📋 COPY', 2000);
+  });
+}
+</script>
+</body>
+</html>
