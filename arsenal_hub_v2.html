@@ -558,8 +558,9 @@ const UCL_ID = 2001;
 document.getElementById('headerDate').textContent =
   new Date().toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
 
-let API_KEY = 'managed_by_server';
+let API_KEY = 'd36146a9f40040c4916221ed5f6a2935';
 document.getElementById('apiBanner').classList.add('hidden');
+if(API_KEY) document.getElementById('apiBanner').classList.add('hidden');
 
 function saveApiKey() {
   const val = document.getElementById('apiKeyInput').value.trim();
@@ -567,6 +568,7 @@ function saveApiKey() {
   API_KEY = val;
   localStorage.setItem('fd_api_key', val);
   document.getElementById('apiBanner').classList.add('hidden');
+if(API_KEY) document.getElementById('apiBanner').classList.add('hidden');
 }
 
 // ── TAB SWITCH ──
@@ -1199,42 +1201,42 @@ async function openMatch(matchId, homeName, awayName, homeScore, awayScore, comp
 
   document.getElementById('mLoading').style.display = 'none';
   document.getElementById('mBody').style.display = 'block';
-  document.getElementById('mBody').innerHTML = \`
+  document.getElementById('mBody').innerHTML = `
     <div class="modal-head">
       <button class="modal-x" onclick="closeModal()">✕</button>
-      <div class="modal-comp">\${comp}\${stage ? ' · ' + stage.replace(/_/g,' ') : ''}</div>
-      <div class="modal-dt">\${dateStr}</div>
+      <div class="modal-comp">${comp}${stage ? ' · ' + stage.replace(/_/g,' ') : ''}</div>
+      <div class="modal-dt">${dateStr}</div>
       <div class="modal-teams">
-        <div class="modal-tname ars left">\${isHome ? 'ARSENAL' : oppName.toUpperCase()}</div>
+        <div class="modal-tname ars left">${isHome ? 'ARSENAL' : oppName.toUpperCase()}</div>
         <div class="modal-sc">
-          <span class="modal-sn">\${isHome ? homeScore : awayScore}</span>
+          <span class="modal-sn">${isHome ? homeScore : awayScore}</span>
           <span class="modal-ss">—</span>
-          <span class="modal-sn">\${isHome ? awayScore : homeScore}</span>
+          <span class="modal-sn">${isHome ? awayScore : homeScore}</span>
         </div>
-        <div class="modal-tname right">\${!isHome ? 'ARSENAL' : oppName.toUpperCase()}</div>
+        <div class="modal-tname right">${!isHome ? 'ARSENAL' : oppName.toUpperCase()}</div>
       </div>
-      <span class="mbadge \${res}">\${res==='W'?'WIN':res==='D'?'DRAW':'LOSS'}</span>
+      <span class="mbadge ${res}">${res==='W'?'WIN':res==='D'?'DRAW':'LOSS'}</span>
     </div>
     <div class="modal-bd">
       <div class="msec-title">HALF-TIME SCORE</div>
       <div class="ht-box">
-        <div><div class="ht-num">\${htArs}</div><div class="ht-lbl">\${isHome?'ARSENAL':oppName.split(' ')[0].toUpperCase()}</div></div>
+        <div><div class="ht-num">${htArs}</div><div class="ht-lbl">${isHome?'ARSENAL':oppName.split(' ')[0].toUpperCase()}</div></div>
         <div class="ht-sep">—</div>
-        <div><div class="ht-num">\${htOpp}</div><div class="ht-lbl">\${!isHome?'ARSENAL':oppName.split(' ')[0].toUpperCase()}</div></div>
+        <div><div class="ht-num">${htOpp}</div><div class="ht-lbl">${!isHome?'ARSENAL':oppName.split(' ')[0].toUpperCase()}</div></div>
       </div>
       <div class="msec-title">2ND HALF GOALS</div>
       <div class="ht-box">
-        <div><div class="ht-num" style="color:var(--red)">\${sh2Ars}</div><div class="ht-lbl">\${isHome?'ARSENAL':oppName.split(' ')[0].toUpperCase()}</div></div>
+        <div><div class="ht-num" style="color:var(--red)">${sh2Ars}</div><div class="ht-lbl">${isHome?'ARSENAL':oppName.split(' ')[0].toUpperCase()}</div></div>
         <div class="ht-sep">—</div>
-        <div><div class="ht-num">\${sh2Opp}</div><div class="ht-lbl">\${!isHome?'ARSENAL':oppName.split(' ')[0].toUpperCase()}</div></div>
+        <div><div class="ht-num">${sh2Opp}</div><div class="ht-lbl">${!isHome?'ARSENAL':oppName.split(' ')[0].toUpperCase()}</div></div>
       </div>
       <div class="msec-title">MATCH INFO</div>
-      <div class="mrow"><span class="mrow-l">Venue</span><span class="mrow-r">\${venue}</span></div>
-      <div class="mrow"><span class="mrow-l">Duration</span><span class="mrow-r">\${duration === 'REGULAR' ? '90 mins' : duration}</span></div>
-      <div class="mrow"><span class="mrow-l">Referee</span><span class="mrow-r">\${referee}</span></div>
-      <div class="mrow"><span class="mrow-l">Arsenal</span><span class="mrow-r red">\${isHome ? '🏠 Home' : '✈️ Away'}</span></div>
+      <div class="mrow"><span class="mrow-l">Venue</span><span class="mrow-r">${venue}</span></div>
+      <div class="mrow"><span class="mrow-l">Duration</span><span class="mrow-r">${duration === 'REGULAR' ? '90 mins' : duration}</span></div>
+      <div class="mrow"><span class="mrow-l">Referee</span><span class="mrow-r">${referee}</span></div>
+      <div class="mrow"><span class="mrow-l">Arsenal</span><span class="mrow-r red">${isHome ? '🏠 Home' : '✈️ Away'}</span></div>
     </div>
-  \`;
+  `;
 }
 
 function closeModal() {
