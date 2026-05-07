@@ -212,6 +212,34 @@ header {
 .stat-value { font-family:'Bebas Neue'; font-size:52px; color:var(--red); line-height:1; }
 .stat-sub { font-size:12px; color:var(--text-muted); margin-top:6px; font-weight:500; line-height:1.4; }
 
+
+/* PLAYERS */
+.players-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:14px; margin-bottom:20px; }
+.player-card {
+  background:var(--surface); border:1px solid var(--border); border-radius:14px;
+  padding:20px; animation:up 0.35s ease both; transition:all 0.2s; position:relative; overflow:hidden;
+}
+.player-card:hover { border-color:var(--border-red); box-shadow:0 4px 20px rgba(239,1,7,0.07); }
+.player-card::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:3px; background:var(--red);
+}
+.player-pos {
+  font-size:10px; font-weight:700; letter-spacing:0.18em; color:var(--red);
+  margin-bottom:10px;
+}
+.player-name { font-size:17px; font-weight:700; color:var(--text); margin-bottom:14px; line-height:1.2; }
+.player-stats { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.player-stat { background:var(--bg); border-radius:8px; padding:10px 12px; }
+.player-stat-val { font-family:'Bebas Neue'; font-size:32px; color:var(--red); line-height:1; }
+.player-stat-label { font-size:10px; color:var(--text-dim); font-weight:600; letter-spacing:0.12em; margin-top:2px; }
+.player-comp-badge {
+  display:inline-block; font-size:10px; font-weight:700; letter-spacing:0.12em;
+  padding:3px 8px; border-radius:4px; margin-bottom:10px;
+}
+.badge-pl { background:#e8f5e9; color:#2e7d32; }
+.badge-ucl { background:#e3f2fd; color:#1565c0; }
+.scorers-section { margin-bottom:24px; }
+
 /* CAPTIONS */
 .caption-card {
   background:var(--surface); border:1px solid var(--border); border-radius:14px;
@@ -264,6 +292,7 @@ header {
       <button class="nav-tab" onclick="switchTab('news',this)">📰 News</button>
       <button class="nav-tab" onclick="switchTab('stats',this)">📊 Stats</button>
       <button class="nav-tab" onclick="switchTab('caption',this)">✍️ Captions</button>
+      <button class="nav-tab" onclick="switchTab('players',this)">👤 Players</button>
     </div>
   </div>
 </header>
@@ -342,6 +371,17 @@ header {
       <div class="empty-body">Fetch Latest를 눌러주세요</div>
     </div>
     <div id="stats-content"></div>
+  </div>
+
+
+  <!-- PLAYERS TAB -->
+  <div class="section" id="section-players">
+    <div class="empty-state" id="empty-players">
+      <div class="empty-crest">AFC</div>
+      <div class="empty-title">No player data yet</div>
+      <div class="empty-body">Fetch Latest를 눌러주세요</div>
+    </div>
+    <div id="players-content"></div>
   </div>
 
   <!-- CAPTION TAB -->
@@ -435,7 +475,13 @@ async function fetchAll() {
     let uclData = null;
     try { uclData = await fdFetch(`/teams/${ARSENAL_ID}/matches?competitions=${UCL_ID}&status=FINISHED&limit=6`); } catch(e) { console.warn('UCL:', e); }
 
-    // 4. News via RSS proxy
+    // 4. Player stats
+    setLoading(true, 'Loading player stats...');
+    let plScorers = null, uclScorers = null;
+    try { plScorers = await fdFetch(`/competitions/2021/scorers?season=2025&limit=50`); } catch(e) { console.warn('PL scorers:', e); }
+    try { uclScorers = await fdFetch(`/competitions/2001/scorers?season=2025&limit=50`); } catch(e) { console.warn('UCL scorers:', e); }
+
+    // 5. News via RSS proxy
     setLoading(true, 'Fetching Arsenal news...');
     const newsItems = await fetchNews();
 
@@ -443,6 +489,7 @@ async function fetchAll() {
     renderResults(matchData.matches || [], standData, uclData?.matches || []);
     renderNews(newsItems);
     renderStats(matchData.matches || [], standData);
+    renderPlayers(plScorers, uclScorers);
     renderCaptions(matchData.matches || [], newsItems);
 
     document.getElementById('updateTime').textContent =
@@ -643,6 +690,138 @@ function renderStats(matches, standData) {
 }
 
 // ── RENDER CAPTIONS ──
+
+function renderPlayers(plScorers, uclScorers) {
+  const c = document.getElementById('players-content');
+  const e = document.getElementById('empty-players');
+  if (!plScorers && !uclScorers) return;
+  e.style.display = 'none';
+
+  // Arsenal PL scorers
+  const plArsenal = (plScorers?.scorers || []).filter(s => s.team.id === 57);
+  // Arsenal UCL scorers
+  const uclArsenal = (uclScorers?.scorers || []).filter(s => s.team.id === 57);
+
+  // Merge all Arsenal players with stats
+  const playerMap = {};
+  plArsenal.forEach(s => {
+    playerMap[s.player.id] = {
+      name: s.player.name,
+      position: s.player.section || '',
+      pl_goals: s.goals || 0,
+      pl_assists: s.assists || 0,
+      pl_games: s.playedMatches || 0,
+      ucl_goals: 0, ucl_assists: 0, ucl_games: 0
+    };
+  });
+  uclArsenal.forEach(s => {
+    if (playerMap[s.player.id]) {
+      playerMap[s.player.id].ucl_goals = s.goals || 0;
+      playerMap[s.player.id].ucl_assists = s.assists || 0;
+      playerMap[s.player.id].ucl_games = s.playedMatches || 0;
+    } else {
+      playerMap[s.player.id] = {
+        name: s.player.name,
+        position: '',
+        pl_goals: 0, pl_assists: 0, pl_games: 0,
+        ucl_goals: s.goals || 0,
+        ucl_assists: s.assists || 0,
+        ucl_games: s.playedMatches || 0
+      };
+    }
+  });
+
+  const players = Object.values(playerMap).sort((a,b) =>
+    (b.pl_goals + b.ucl_goals) - (a.pl_goals + a.ucl_goals)
+  );
+
+  if (!players.length) {
+    e.style.display = 'block';
+    return;
+  }
+
+  // Summary stats
+  const topScorer = players[0];
+  const totalGoals = players.reduce((sum,p) => sum + p.pl_goals + p.ucl_goals, 0);
+  const totalAssists = players.reduce((sum,p) => sum + p.pl_assists + p.ucl_assists, 0);
+
+  c.innerHTML = `
+    <div class="section-title">ARSENAL PLAYERS — SEASON STATS</div>
+
+    <div class="stats-grid" style="margin-bottom:24px;">
+      <div class="stat-card">
+        <div class="stat-label">TOP SCORER</div>
+        <div class="stat-value" style="font-size:28px;line-height:1.2;">${topScorer.name.split(' ').pop()}</div>
+        <div class="stat-sub">${topScorer.pl_goals + topScorer.ucl_goals} goals total this season</div>
+      </div>
+      <div class="stat-card" style="animation-delay:.04s">
+        <div class="stat-label">SQUAD GOALS</div>
+        <div class="stat-value">${totalGoals}</div>
+        <div class="stat-sub">Combined PL + UCL goals</div>
+      </div>
+      <div class="stat-card" style="animation-delay:.08s">
+        <div class="stat-label">SQUAD ASSISTS</div>
+        <div class="stat-value">${totalAssists}</div>
+        <div class="stat-sub">Combined PL + UCL assists</div>
+      </div>
+    </div>
+
+    <div class="section-title">PREMIER LEAGUE</div>
+    <div class="players-grid">
+      ${plArsenal.map((s,i) => `
+        <div class="player-card" style="animation-delay:${i*0.05}s">
+          <div class="player-pos">PREMIER LEAGUE 2025/26</div>
+          <div class="player-name">${s.player.name}</div>
+          <div class="player-stats">
+            <div class="player-stat">
+              <div class="player-stat-val">${s.goals || 0}</div>
+              <div class="player-stat-label">GOALS</div>
+            </div>
+            <div class="player-stat">
+              <div class="player-stat-val">${s.assists || 0}</div>
+              <div class="player-stat-label">ASSISTS</div>
+            </div>
+            <div class="player-stat">
+              <div class="player-stat-val">${s.playedMatches || 0}</div>
+              <div class="player-stat-label">GAMES</div>
+            </div>
+            <div class="player-stat">
+              <div class="player-stat-val">${s.playedMatches ? ((s.goals||0)/s.playedMatches).toFixed(1) : '0.0'}</div>
+              <div class="player-stat-label">G/GAME</div>
+            </div>
+          </div>
+        </div>`).join('')}
+    </div>
+
+    <div class="section-title">UEFA CHAMPIONS LEAGUE</div>
+    <div class="players-grid">
+      ${uclArsenal.map((s,i) => `
+        <div class="player-card" style="animation-delay:${i*0.05}s">
+          <div class="player-pos">UCL 2025/26</div>
+          <div class="player-name">${s.player.name}</div>
+          <div class="player-stats">
+            <div class="player-stat">
+              <div class="player-stat-val">${s.goals || 0}</div>
+              <div class="player-stat-label">GOALS</div>
+            </div>
+            <div class="player-stat">
+              <div class="player-stat-val">${s.assists || 0}</div>
+              <div class="player-stat-label">ASSISTS</div>
+            </div>
+            <div class="player-stat">
+              <div class="player-stat-val">${s.playedMatches || 0}</div>
+              <div class="player-stat-label">GAMES</div>
+            </div>
+            <div class="player-stat">
+              <div class="player-stat-val">${s.playedMatches ? ((s.goals||0)/s.playedMatches).toFixed(1) : '0.0'}</div>
+              <div class="player-stat-label">G/GAME</div>
+            </div>
+          </div>
+        </div>`).join('')}
+    </div>
+  `;
+}
+
 function renderCaptions(matches, news) {
   const c = document.getElementById('caption-content');
   const e = document.getElementById('empty-caption');
