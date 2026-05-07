@@ -74,6 +74,37 @@ class ArsenalProxy(http.server.BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({"error": str(e)}).encode())
             return
 
+        # AllSports proxy
+        if self.path.startswith("/allsports/"):
+            api_path = self.path[len("/allsports"):]
+            url = f"https://allsportsapi2.p.rapidapi.com{api_path}"
+            try:
+                req = urllib.request.Request(url, headers={
+                    "x-rapidapi-host": "allsportsapi2.p.rapidapi.com",
+                    "x-rapidapi-key": "692d7efbe5mshb82d488afe6642ap189e0ajsn0d594bdfb79f"
+                })
+                with urllib.request.urlopen(req, timeout=10) as r:
+                    data = r.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_cors()
+                self.end_headers()
+                self.wfile.write(data)
+            except urllib.error.HTTPError as e:
+                body = e.read()
+                self.send_response(e.code)
+                self.send_header("Content-Type", "application/json")
+                self.send_cors()
+                self.end_headers()
+                self.wfile.write(body)
+            except Exception as e:
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json")
+                self.send_cors()
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
+            return
+
         # RSS proxy
         if self.path.startswith("/rss"):
             params = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)

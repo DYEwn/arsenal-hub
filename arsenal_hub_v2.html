@@ -558,7 +558,14 @@ const UCL_ID = 2001;
 document.getElementById('headerDate').textContent =
   new Date().toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
 
-let API_KEY = 'd36146a9f40040c4916221ed5f6a2935';
+let API_KEY = 'd36146a9f40040c4916221ed5f6a2935'; // football-data.org
+const RAPID_KEY = '692d7efbe5mshb82d488afe6642ap189e0ajsn0d594bdfb79f'; // AllSportsApi
+const RAPID_HOST = 'allsportsapi2.p.rapidapi.com';
+const ARSENAL_TEAM_ID = 42; // Arsenal ID on AllSports
+const PL_TOURNAMENT = 17;
+const UCL_TOURNAMENT = 7;
+const PL_SEASON = 61627;
+const UCL_SEASON = 61644;
 document.getElementById('apiBanner').classList.add('hidden');
 if(API_KEY) document.getElementById('apiBanner').classList.add('hidden');
 
@@ -596,6 +603,58 @@ function showError(msg) {
 }
 
 // ── FETCH ALL ──
+
+// ── API FETCH FUNCTIONS ──
+async function fdFetch(path) {
+  const res = await fetch(`/api${path}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `API error ${res.status}`);
+  }
+  return res.json();
+}
+
+async function asFetch(path) {
+  const res = await fetch(`/allsports${path}`);
+  if (!res.ok) throw new Error(`AllSports error ${res.status}`);
+  return res.json();
+}
+
+async function fetchAllSportsMatches() {
+  const matches = [];
+  const configs = [
+    { tid: 17, sid: 76986, comp: 'Premier League' },
+    { tid: 7,  sid: 76953, comp: 'UEFA Champions League' }
+  ];
+  for (const cfg of configs) {
+    for (let page = 0; page < 4; page++) {
+      try {
+        const data = await asFetch(`/api/tournament/${cfg.tid}/season/${cfg.sid}/matches/last/${page}`);
+        const events = data.events || [];
+        if (!events.length) break;
+        for (const e of events) {
+          const home = e.homeTeam?.name || '';
+          const away = e.awayTeam?.name || '';
+          if (home.includes('Arsenal') || away.includes('Arsenal')) {
+            matches.push({
+              id: e.id,
+              competition: cfg.comp,
+              homeTeam: e.homeTeam,
+              awayTeam: e.awayTeam,
+              homeScore: e.homeScore?.current ?? 0,
+              awayScore: e.awayScore?.current ?? 0,
+              startTimestamp: e.startTimestamp,
+              stage: e.roundInfo?.name || ''
+            });
+          }
+        }
+      } catch(e) { break; }
+    }
+  }
+  // Sort by timestamp desc, take top 8
+  return matches.sort((a,b) => b.startTimestamp - a.startTimestamp).slice(0, 8);
+}
+
 async function fetchAll() {
   if (!API_KEY) {
     document.getElementById('apiBanner').classList.remove('hidden');
@@ -604,19 +663,11 @@ async function fetchAll() {
   setLoading(true, 'Fetching recent matches...');
 
   try {
-    // 로컬 프록시 서버 사용 (arsenal_server.py)
-    async function fdFetch(path) {
-      const res = await fetch(`/api${path}`);
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || `API error ${res.status}`);
-      }
-      return res.json();
-    }
-
-    // 1. Recent matches
+    // 1. Recent matches from AllSports (richer data)
     setLoading(true, 'Loading Arsenal recent matches...');
-    const matchData = await fdFetch(`/teams/${ARSENAL_ID}/matches?status=FINISHED&limit=5`);
+    const asMatches = await fetchAllSportsMatches();
+    // Also fetch from football-data for standings
+    const matchData = await fdFetch(`/teams/${ARSENAL_ID}/matches?status=FINISHED&limit=5`).catch(() => ({matches:[]}));
 
     // 2. Standings
     setLoading(true, 'Loading Premier League table...');
@@ -631,19 +682,19 @@ async function fetchAll() {
     // 4. Player stats
     setLoading(true, 'Loading player stats...');
     let plScorers = null, uclScorers = null;
-    try { plScorers = await fdFetch(`/competitions/2021/scorers?season=2025&limit=50`); } catch(e) { console.warn('PL scorers:', e); }
-    try { uclScorers = await fdFetch(`/competitions/2001/scorers?season=2025&limit=50`); } catch(e) { console.warn('UCL scorers:', e); }
+    try { plScorers = await fdFetch(`/competitions/2021/scorers?season=2025`).catch(() => null); } catch(e) { console.warn('PL scorers:', e); }
+    try { uclScorers = await fdFetch(`/competitions/2001/scorers?season=2025`).catch(() => null); } catch(e) { console.warn('UCL scorers:', e); }
 
     // 5. News via RSS proxy
     setLoading(true, 'Fetching Arsenal news...');
     const newsItems = await fetchNews();
 
     // RENDER
-    renderResults(matchData.matches || [], standData, uclData?.matches || []);
+    renderResults(asMatches, standData);
     renderNews(newsItems);
-    renderStats(matchData.matches || [], standData);
+    renderStats(asMatches, standData);
     renderPlayers(plScorers, uclScorers);
-    renderCaptions(matchData.matches || [], newsItems);
+    renderCaptions(asMatches, newsItems);
 
     document.getElementById('updateTime').textContent =
       new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
@@ -685,27 +736,28 @@ async function fetchNews() {
 }
 
 // ── RENDER RESULTS ──
-function renderResults(matches, standData, uclMatches) {
+function renderResults(asMatches, standData) {
   const c = document.getElementById('results-content');
   const e = document.getElementById('empty-results');
 
-  if (!matches.length && !standData) return;
+  if (!asMatches.length && !standData) return;
   e.style.display = 'none';
 
-  // Recent PL/Cup results
-  const plHtml = matches.reverse().map((m, i) => {
-    const isHome = m.homeTeam.id === ARSENAL_ID;
-    const ars = isHome ? m.homeTeam.name : m.awayTeam.name;
-    const opp = isHome ? m.awayTeam.name : m.homeTeam.name;
-    const arsScore = isHome ? m.score.fullTime.home : m.score.fullTime.away;
-    const oppScore = isHome ? m.score.fullTime.away : m.score.fullTime.home;
+  // Recent results from AllSports
+  const plHtml = asMatches.map((m, i) => {
+    const isHome = m.homeTeam.name.includes('Arsenal');
+    const opp = isHome ? m.awayTeam.shortName || m.awayTeam.name : m.homeTeam.shortName || m.homeTeam.name;
+    const arsScore = isHome ? m.homeScore : m.awayScore;
+    const oppScore = isHome ? m.awayScore : m.homeScore;
     const res = arsScore > oppScore ? 'W' : arsScore < oppScore ? 'L' : 'D';
     const label = res === 'W' ? 'WIN' : res === 'D' ? 'DRAW' : 'LOSS';
-    const dateStr = new Date(m.utcDate).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+    const dateStr = new Date(m.startTimestamp * 1000).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+    const homeName = m.homeTeam.name;
+    const awayName = m.awayTeam.name;
 
-    return `<div class="result-card" style="animation-delay:${i*0.06}s" onclick="openMatch(${m.id},'${m.homeTeam.name}','${m.awayTeam.name}',${m.score.fullTime.home},${m.score.fullTime.away},'${m.competition?.name||'Match'}','${dateStr}',${isHome},'${m.stage||''}')">
+    return `<div class="result-card" style="animation-delay:${i*0.06}s" onclick="openMatch('${m.id}','${homeName.replace(/'/g,"\'")}','${awayName.replace(/'/g,"\'")}',${m.homeScore},${m.awayScore},'${m.competition}','${dateStr}',${isHome},'${m.stage}')">
       <div class="result-top">
-        <span class="comp-tag">${m.competition?.name || 'MATCH'}</span>
+        <span class="comp-tag">${m.competition}</span>
         <span class="result-date">${dateStr}</span>
         <span class="result-badge badge-${res}">${label}</span>
       </div>
@@ -713,13 +765,13 @@ function renderResults(matches, standData, uclMatches) {
         <div class="scoreline">
           <div class="team"><div class="team-name ${isHome?'ars':''}">${isHome?'ARSENAL':opp.toUpperCase()}</div></div>
           <div class="score-display">
-            <span class="score-num">${isHome?arsScore:oppScore}</span>
+            <span class="score-num">${arsScore}</span>
             <span class="score-dash">—</span>
-            <span class="score-num">${isHome?oppScore:arsScore}</span>
+            <span class="score-num">${oppScore}</span>
           </div>
           <div class="team"><div class="team-name ${!isHome?'ars':''}">${!isHome?'ARSENAL':opp.toUpperCase()}</div></div>
         </div>
-        <div class="match-note">${isHome?'🏠 Home':'✈️ Away'} · ${m.venue || ''}&nbsp;&nbsp;<span style="color:var(--red);font-size:11px;font-weight:700;">자세히 보기 →</span></div>
+        <div class="match-note">${isHome?'🏠 Home':'✈️ Away'}&nbsp;&nbsp;<span style="color:var(--red);font-size:11px;font-weight:700;">클릭하면 자세히 보기 →</span></div>
       </div>
     </div>`;
   }).join('');
@@ -753,39 +805,7 @@ function renderResults(matches, standData, uclMatches) {
       </table>`;
   }
 
-  // UCL results
-  let uclHtml = '';
-  if (uclMatches.length) {
-    uclHtml = `<div class="section-title">UCL 2025/26 RESULTS</div>` +
-      uclMatches.reverse().map((m,i) => {
-        const isHome = m.homeTeam.id === ARSENAL_ID;
-        const opp = isHome ? m.awayTeam.name : m.homeTeam.name;
-        const arsScore = isHome ? m.score.fullTime.home : m.score.fullTime.away;
-        const oppScore = isHome ? m.score.fullTime.away : m.score.fullTime.home;
-        const res = arsScore > oppScore ? 'W' : arsScore < oppScore ? 'L' : 'D';
-        const dateStr = new Date(m.utcDate).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
-        return `<div class="result-card" style="animation-delay:${i*0.05}s">
-          <div class="result-top">
-            <span class="comp-tag">UCL</span>
-            <span class="result-date">${dateStr} · ${m.stage?.replace(/_/g,' ')}</span>
-            <span class="result-badge badge-${res}">${res==='W'?'WIN':res==='D'?'DRAW':'LOSS'}</span>
-          </div>
-          <div class="result-body">
-            <div class="scoreline">
-              <div class="team"><div class="team-name ${isHome?'ars':''}">${isHome?'ARSENAL':opp.toUpperCase()}</div></div>
-              <div class="score-display">
-                <span class="score-num">${isHome?arsScore:oppScore}</span>
-                <span class="score-dash">—</span>
-                <span class="score-num">${isHome?oppScore:arsScore}</span>
-              </div>
-              <div class="team"><div class="team-name ${!isHome?'ars':''}">${!isHome?'ARSENAL':opp.toUpperCase()}</div></div>
-            </div>
-          </div>
-        </div>`;
-      }).join('');
-  }
-
-  c.innerHTML = `<div class="section-title">RECENT RESULTS</div>` + plHtml + tableHtml + uclHtml;
+  c.innerHTML = `<div class="section-title">RECENT RESULTS (PL + UCL)</div>` + plHtml + tableHtml;
 }
 
 // ── RENDER NEWS ──
@@ -804,31 +824,31 @@ function renderNews(items) {
 }
 
 // ── RENDER STATS ──
-function renderStats(matches, standData) {
+function renderStats(asMatches, standData) {
   const c = document.getElementById('stats-content');
   const e = document.getElementById('empty-stats');
-  if (!matches.length && !standData) return;
+  if (!asMatches.length && !standData) return;
   e.style.display = 'none';
 
-  // Calc from matches
-  const finished = matches.filter(m => m.status === 'FINISHED');
+  // Calc from asMatches
   let w=0,d=0,l=0,gf=0,ga=0;
-  finished.forEach(m => {
-    const isHome = m.homeTeam.id === ARSENAL_ID;
-    const ars = isHome ? m.score.fullTime.home : m.score.fullTime.away;
-    const opp = isHome ? m.score.fullTime.away : m.score.fullTime.home;
+  asMatches.forEach(m => {
+    const isHome = m.homeTeam.name.includes('Arsenal');
+    const ars = isHome ? m.homeScore : m.awayScore;
+    const opp = isHome ? m.awayScore : m.homeScore;
     gf += ars; ga += opp;
     if(ars>opp) w++; else if(ars===opp) d++; else l++;
   });
+  const finished = asMatches;
 
   // From standings
   let plPos='—', plPts='—', plPlayed='—';
   if (standData?.standings) {
-    const row = standData.standings[0].table.find(t => t.team.id === ARSENAL_ID);
+    const row = standData?.standings?.[0]?.table?.find(t => t.team.id === 57);
     if(row) { plPos=row.position; plPts=row.points; plPlayed=row.playedGames; }
   }
 
-  const winRate = finished.length ? Math.round((w/finished.length)*100) : 0;
+  const winRate = asMatches.length ? Math.round((w/asMatches.length)*100) : 0;
 
   c.innerHTML = `
     <div class="section-title">SEASON STATS (FROM API)</div>
@@ -1035,143 +1055,9 @@ function copyCaption(i) {
   });
 }
 
-// ── MATCH MODAL ──
-async function openMatch(matchId, homeTeam, awayTeam, homeScore, awayScore, competition, dateStr, isHome, stage) {
-  document.getElementById('matchModal').classList.remove('hidden');
-  document.getElementById('modalLoading').style.display = 'block';
-  document.getElementById('modalBody').style.display = 'none';
-  document.body.style.overflow = 'hidden';
-
-  try {
-    const data = await fdFetch(`/matches/${matchId}`);
-    renderModal(data, homeTeam, awayTeam, homeScore, awayScore, competition, dateStr, isHome, stage);
-  } catch(e) {
-    // Fallback with basic info
-    renderModalBasic(homeTeam, awayTeam, homeScore, awayScore, competition, dateStr, isHome, stage, null);
-  }
-}
-
-function renderModal(data, homeTeam, awayTeam, homeScore, awayScore, competition, dateStr, isHome, stage) {
-  const htHome = data.score?.halfTime?.home ?? '?';
-  const htAway = data.score?.halfTime?.away ?? '?';
-  const referee = data.referees?.find(r => r.type === 'REFEREE')?.name || 'N/A';
-  const venue = data.venue || (isHome ? 'Emirates Stadium' : 'Away');
-  const duration = data.score?.duration || 'REGULAR';
-  const arsScore = isHome ? homeScore : awayScore;
-  const oppScore = isHome ? awayScore : homeScore;
-  const res = arsScore > oppScore ? 'W' : arsScore < oppScore ? 'L' : 'D';
-  const oppName = isHome ? awayTeam : homeTeam;
-
-  // Flow bar — based on halftime vs fulltime scoring
-  const htArs = isHome ? htHome : htAway;
-  const htOpp = isHome ? htAway : htHome;
-  const sh2Ars = arsScore - (htArs === '?' ? 0 : htArs);
-  const sh2Opp = oppScore - (htOpp === '?' ? 0 : htOpp);
-
-  document.getElementById('modalLoading').style.display = 'none';
-  document.getElementById('modalBody').style.display = 'block';
-  document.getElementById('modalBody').innerHTML = `
-    <div class="modal-header">
-      <button class="modal-close" onclick="closeModalBtn()">✕</button>
-      <div class="modal-competition">${competition} ${stage ? '· ' + stage.replace(/_/g,' ') : ''}</div>
-      <div class="modal-date">${dateStr}</div>
-      <div class="modal-scoreline">
-        <div class="modal-team">
-          <div class="modal-team-name ${isHome?'ars':''}">${isHome?'ARSENAL':oppName.toUpperCase()}</div>
-        </div>
-        <div>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <span class="modal-score">${isHome?homeScore:awayScore}</span>
-            <span class="modal-score-sep">—</span>
-            <span class="modal-score">${isHome?awayScore:homeScore}</span>
-          </div>
-          <div style="text-align:center;">
-            <span class="modal-result-badge ${res}">${res==='W'?'WIN':res==='D'?'DRAW':'LOSS'}</span>
-          </div>
-        </div>
-        <div class="modal-team">
-          <div class="modal-team-name ${!isHome?'ars':''}">${!isHome?'ARSENAL':oppName.toUpperCase()}</div>
-        </div>
-      </div>
-    </div>
-    <div class="modal-body">
-
-      <div class="modal-section">
-        <div class="modal-section-title">HALF-TIME SCORE</div>
-        <div class="halftime-visual">
-          <div class="ht-label">HT</div>
-          <div class="ht-scores">
-            <div class="ht-score">
-              <div class="ht-score-num">${isHome?htHome:htAway}</div>
-              <div class="ht-score-team">${isHome?'ARSENAL':oppName.toUpperCase()}</div>
-            </div>
-            <div class="ht-sep">—</div>
-            <div class="ht-score">
-              <div class="ht-score-num">${isHome?htAway:htHome}</div>
-              <div class="ht-score-team">${!isHome?'ARSENAL':oppName.toUpperCase()}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="modal-section">
-        <div class="modal-section-title">2ND HALF GOALS</div>
-        <div class="halftime-visual">
-          <div class="ht-scores">
-            <div class="ht-score">
-              <div class="ht-score-num" style="color:var(--red)">${sh2Ars >= 0 ? sh2Ars : '?'}</div>
-              <div class="ht-score-team">${isHome?'ARSENAL':oppName.toUpperCase()}</div>
-            </div>
-            <div class="ht-sep">—</div>
-            <div class="ht-score">
-              <div class="ht-score-num">${sh2Opp >= 0 ? sh2Opp : '?'}</div>
-              <div class="ht-score-team">${!isHome?'ARSENAL':oppName.toUpperCase()}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="modal-section">
-        <div class="modal-section-title">MATCH INFO</div>
-        <div class="modal-row">
-          <span class="modal-row-label">Venue</span>
-          <span class="modal-row-val">${venue}</span>
-        </div>
-        <div class="modal-row">
-          <span class="modal-row-label">Duration</span>
-          <span class="modal-row-val">${duration === 'REGULAR' ? '90 mins' : duration}</span>
-        </div>
-        <div class="modal-row">
-          <span class="modal-row-label">Referee</span>
-          <span class="modal-row-val">${referee}</span>
-        </div>
-        <div class="modal-row">
-          <span class="modal-row-label">Arsenal</span>
-          <span class="modal-row-val red">${isHome ? '🏠 Home' : '✈️ Away'}</span>
-        </div>
-      </div>
-
-    </div>
-  `;
-}
-
-function renderModalBasic(homeTeam, awayTeam, homeScore, awayScore, competition, dateStr, isHome, stage, data) {
-  renderModal({score:{halfTime:{home:'?',away:'?'}}, referees:[], venue:null, score:{duration:'REGULAR',halfTime:{home:'?',away:'?'}}},
-    homeTeam, awayTeam, homeScore, awayScore, competition, dateStr, isHome, stage);
-}
-
-function closeModal(e) {
-  if (e.target === document.getElementById('matchModal')) closeModalBtn();
-}
-function closeModalBtn() {
-  document.getElementById('matchModal').classList.add('hidden');
-  document.body.style.overflow = '';
-}
-document.addEventListener('keydown', e => { if(e.key === 'Escape') closeModalBtn(); });
-
-
 // ── MODAL ──
-async function openMatch(matchId, homeName, awayName, homeScore, awayScore, comp, dateStr, isHome, stage) {
+// asMatchId is AllSports match ID stored in card data attribute
+async function openMatch(asMatchId, homeName, awayName, homeScore, awayScore, comp, dateStr, isHome, stage) {
   const modal = document.getElementById('matchModal');
   modal.classList.remove('hidden');
   document.getElementById('mLoading').style.display = 'block';
@@ -1183,57 +1069,134 @@ async function openMatch(matchId, homeName, awayName, homeScore, awayScore, comp
   const oppName  = isHome ? awayName  : homeName;
   const res = arsScore > oppScore ? 'W' : arsScore < oppScore ? 'L' : 'D';
 
-  let htHome = '?', htAway = '?', referee = 'N/A', venue = isHome ? 'Emirates Stadium' : 'Away', duration = 'REGULAR';
+  let goals = [], subs = [], cards = [], statsItems = [], htArs = '?', htOpp = '?';
 
   try {
-    const d = await fdFetch('/matches/' + matchId);
-    htHome   = d.score?.halfTime?.home ?? '?';
-    htAway   = d.score?.halfTime?.away ?? '?';
-    duration = d.score?.duration || 'REGULAR';
-    venue    = d.venue || venue;
-    referee  = d.referees?.find(r => r.type === 'REFEREE')?.name || 'N/A';
-  } catch(e) { console.warn('match detail:', e); }
+    // Get incidents (goals, cards, subs) from AllSports
+    const [incData, statsData] = await Promise.all([
+      asFetch(`/api/match/${asMatchId}/incidents`),
+      asFetch(`/api/match/${asMatchId}/statistics`).catch(() => ({}))
+    ]);
 
-  const htArs = isHome ? htHome : htAway;
-  const htOpp = isHome ? htAway : htHome;
-  const sh2Ars = (typeof htArs === 'number') ? arsScore - htArs : '?';
-  const sh2Opp = (typeof htOpp === 'number') ? oppScore - htOpp : '?';
+    const incidents = incData.incidents || [];
+
+    // Parse goals
+    goals = incidents.filter(i => i.incidentType === 'goal').map(i => ({
+      time: i.time,
+      player: i.player?.shortName || '?',
+      isHome: i.isHome,
+      addedTime: i.addedTime
+    }));
+
+    // Parse halftime from period incidents
+    const htPeriod = incidents.find(i => i.incidentType === 'period' && i.text === 'HT');
+    if (htPeriod) {
+      htArs = isHome ? htPeriod.homeScore : htPeriod.awayScore;
+      htOpp = isHome ? htPeriod.awayScore : htPeriod.homeScore;
+    }
+
+    // Parse subs (Arsenal only)
+    subs = incidents.filter(i => i.incidentType === 'substitution' && (
+      (isHome && i.isHome) || (!isHome && !i.isHome)
+    )).map(i => ({
+      time: i.time,
+      in: i.playerIn?.shortName || '?',
+      out: i.playerOut?.shortName || '?'
+    }));
+
+    // Parse cards (Arsenal only)
+    cards = incidents.filter(i => i.incidentType === 'card' && (
+      (isHome && i.isHome) || (!isHome && !i.isHome)
+    )).map(i => ({
+      time: i.time,
+      player: i.player?.shortName || '?',
+      type: i.incidentClass
+    }));
+
+    // Parse key stats
+    const allStats = statsData.statistics?.find(s => s.period === 'ALL');
+    if (allStats) {
+      const overview = allStats.groups?.find(g => g.groupName === 'Match overview');
+      if (overview) {
+        statsItems = overview.statisticsItems?.slice(0, 5).map(s => ({
+          name: s.name,
+          home: s.home,
+          away: s.away,
+          homeVal: s.homeValue,
+          awayVal: s.awayValue
+        })) || [];
+      }
+    }
+  } catch(e) { console.warn('AllSports match detail:', e); }
 
   document.getElementById('mLoading').style.display = 'none';
   document.getElementById('mBody').style.display = 'block';
+  const arsName = isHome ? homeName : awayName;
+  const oppDisplayName = isHome ? awayName : homeName;
+
+  const goalsHtml = goals.length ? goals.map(g => {
+    const isArs = (isHome && g.isHome) || (!isHome && !g.isHome);
+    const t = g.addedTime ? `${g.time}+${g.addedTime}'` : `${g.time}'`;
+    return `<div class="mrow">
+      <span class="mrow-l">${isArs ? '<span style="color:var(--red)">⚽ ARSENAL</span>' : '⚽ ' + oppDisplayName}</span>
+      <span class="mrow-r">${t} ${g.player}</span>
+    </div>`;
+  }).join('') : '<div class="mrow"><span class="mrow-l" style="color:var(--text-dim)">No goal data</span></div>';
+
+  const statsHtml = statsItems.length ? statsItems.map(s => {
+    const arsVal = isHome ? s.homeVal : s.awayVal;
+    const oppVal = isHome ? s.awayVal : s.homeVal;
+    const arsDisp = isHome ? s.home : s.away;
+    const oppDisp = isHome ? s.away : s.home;
+    const pct = (arsVal + oppVal) > 0 ? Math.round(arsVal/(arsVal+oppVal)*100) : 50;
+    return `<div style="margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:600;margin-bottom:4px;">
+        <span style="color:var(--red)">${arsDisp}</span>
+        <span style="color:var(--text-muted);font-size:11px;">${s.name}</span>
+        <span>${oppDisp}</span>
+      </div>
+      <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;display:flex;">
+        <div style="width:${pct}%;background:var(--red);border-radius:3px 0 0 3px;"></div>
+      </div>
+    </div>`;
+  }).join('') : '';
+
+  const subsHtml = subs.length ? subs.map(s =>
+    `<div class="mrow">
+      <span class="mrow-l">🔄 ${s.time}'</span>
+      <span class="mrow-r" style="font-size:12px;">▲ ${s.in} / ▼ ${s.out}</span>
+    </div>`
+  ).join('') : '<div class="mrow"><span class="mrow-l" style="color:var(--text-dim)">No data</span></div>';
+
   document.getElementById('mBody').innerHTML = `
     <div class="modal-head">
       <button class="modal-x" onclick="closeModal()">✕</button>
       <div class="modal-comp">${comp}${stage ? ' · ' + stage.replace(/_/g,' ') : ''}</div>
       <div class="modal-dt">${dateStr}</div>
       <div class="modal-teams">
-        <div class="modal-tname ars left">${isHome ? 'ARSENAL' : oppName.toUpperCase()}</div>
+        <div class="modal-tname ars left">${isHome ? 'ARSENAL' : oppDisplayName.toUpperCase()}</div>
         <div class="modal-sc">
           <span class="modal-sn">${isHome ? homeScore : awayScore}</span>
           <span class="modal-ss">—</span>
           <span class="modal-sn">${isHome ? awayScore : homeScore}</span>
         </div>
-        <div class="modal-tname right">${!isHome ? 'ARSENAL' : oppName.toUpperCase()}</div>
+        <div class="modal-tname right">${!isHome ? 'ARSENAL' : oppDisplayName.toUpperCase()}</div>
       </div>
       <span class="mbadge ${res}">${res==='W'?'WIN':res==='D'?'DRAW':'LOSS'}</span>
     </div>
     <div class="modal-bd">
-      <div class="msec-title">HALF-TIME SCORE</div>
-      <div class="ht-box">
-        <div><div class="ht-num">${htArs}</div><div class="ht-lbl">${isHome?'ARSENAL':oppName.split(' ')[0].toUpperCase()}</div></div>
-        <div class="ht-sep">—</div>
-        <div><div class="ht-num">${htOpp}</div><div class="ht-lbl">${!isHome?'ARSENAL':oppName.split(' ')[0].toUpperCase()}</div></div>
-      </div>
-      <div class="msec-title">2ND HALF GOALS</div>
-      <div class="ht-box">
-        <div><div class="ht-num" style="color:var(--red)">${sh2Ars}</div><div class="ht-lbl">${isHome?'ARSENAL':oppName.split(' ')[0].toUpperCase()}</div></div>
-        <div class="ht-sep">—</div>
-        <div><div class="ht-num">${sh2Opp}</div><div class="ht-lbl">${!isHome?'ARSENAL':oppName.split(' ')[0].toUpperCase()}</div></div>
-      </div>
+
+      <div class="msec-title">⚽ GOALS</div>
+      ${goalsHtml}
+
+      <div class="msec-title">📊 MATCH STATS</div>
+      ${statsHtml || '<div style="color:var(--text-dim);font-size:13px;padding:8px 0;">No stats available</div>'}
+
+      <div class="msec-title">🔄 ARSENAL SUBS</div>
+      ${subsHtml}
+
       <div class="msec-title">MATCH INFO</div>
-      <div class="mrow"><span class="mrow-l">Venue</span><span class="mrow-r">${venue}</span></div>
-      <div class="mrow"><span class="mrow-l">Duration</span><span class="mrow-r">${duration === 'REGULAR' ? '90 mins' : duration}</span></div>
-      <div class="mrow"><span class="mrow-l">Referee</span><span class="mrow-r">${referee}</span></div>
+      <div class="mrow"><span class="mrow-l">Half-time</span><span class="mrow-r">${htArs} — ${htOpp}</span></div>
       <div class="mrow"><span class="mrow-l">Arsenal</span><span class="mrow-r red">${isHome ? '🏠 Home' : '✈️ Away'}</span></div>
     </div>
   `;
@@ -1244,7 +1207,8 @@ function closeModal() {
   document.body.style.overflow = '';
 }
 document.addEventListener('keydown', e => { if(e.key==='Escape') closeModal(); });
-document.getElementById('matchModal').addEventListener('click', function(e) {
+const modalEl = document.getElementById('matchModal');
+if(modalEl) modalEl.addEventListener('click', function(e) {
   if(e.target === this) closeModal();
 });
 
