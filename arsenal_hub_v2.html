@@ -663,11 +663,9 @@ async function fetchAll() {
   setLoading(true, 'Fetching recent matches...');
 
   try {
-    // 1. Recent matches from AllSports (richer data)
+    // 1. Recent matches from football-data.org (main data)
     setLoading(true, 'Loading Arsenal recent matches...');
-    const asMatches = await fetchAllSportsMatches();
-    // Also fetch from football-data for standings
-    const matchData = await fdFetch(`/teams/${ARSENAL_ID}/matches?status=FINISHED&limit=5`).catch(() => ({matches:[]}));
+    const matchData = await fdFetch(`/teams/${ARSENAL_ID}/matches?status=FINISHED&limit=8`);
 
     // 2. Standings
     setLoading(true, 'Loading Premier League table...');
@@ -690,11 +688,11 @@ async function fetchAll() {
     const newsItems = await fetchNews();
 
     // RENDER
-    renderResults(asMatches, standData);
+    renderResults(matchData.matches || [], standData);
     renderNews(newsItems);
-    renderStats(asMatches, standData);
+    renderStats(matchData.matches || [], standData);
     renderPlayers(plScorers, uclScorers);
-    renderCaptions(asMatches, newsItems);
+    renderCaptions(matchData.matches || [], newsItems);
 
     document.getElementById('updateTime').textContent =
       new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
@@ -844,11 +842,11 @@ function renderStats(asMatches, standData) {
   // From standings
   let plPos='—', plPts='—', plPlayed='—';
   if (standData?.standings) {
-    const row = standData?.standings?.[0]?.table?.find(t => t.team.id === 57);
+    const row = standData?.standings?.[0]?.table?.find(t => t.team.id === ARSENAL_ID);
     if(row) { plPos=row.position; plPts=row.points; plPlayed=row.playedGames; }
   }
 
-  const winRate = asMatches.length ? Math.round((w/asMatches.length)*100) : 0;
+  const winRate = finished.length ? Math.round((w/finished.length)*100) : 0;
 
   c.innerHTML = `
     <div class="section-title">SEASON STATS (FROM API)</div>
@@ -1056,7 +1054,65 @@ function copyCaption(i) {
 }
 
 // ── MODAL ──
-// asMatchId is AllSports match ID stored in card data attribute
+// Find AllSports match ID by team names + date, then open modal
+async function openMatchByInfo(homeName, awayName, dateStr, homeScore, awayScore, comp, isHome, stage) {
+  const modal = document.getElementById('matchModal');
+  modal.classList.remove('hidden');
+  document.getElementById('mLoading').style.display = 'block';
+  document.getElementById('mBody').style.display = 'none';
+  document.body.style.overflow = 'hidden';
+
+  try {
+    // Search AllSports for matching match
+    const tid = comp.toLowerCase().includes('champions') ? 7 : 17;
+    const sid = comp.toLowerCase().includes('champions') ? 76953 : 76986;
+    let asMatchId = null;
+
+    for (let page = 0; page < 5; page++) {
+      const data = await asFetch(`/api/tournament/${tid}/season/${sid}/matches/last/${page}`);
+      const events = data.events || [];
+      if (!events.length) break;
+      const match = events.find(e => {
+        const hScore = e.homeScore?.current;
+        const aScore = e.awayScore?.current;
+        return (e.homeTeam?.name?.includes(homeName.split(' ')[0]) || e.awayTeam?.name?.includes(awayName.split(' ')[0])) &&
+               hScore === homeScore && aScore === awayScore;
+      });
+      if (match) { asMatchId = match.id; break; }
+    }
+
+    if (!asMatchId) throw new Error('Match not found in AllSports');
+    await openMatch(asMatchId, homeName, awayName, homeScore, awayScore, comp, dateStr, isHome, stage);
+  } catch(e) {
+    console.warn('openMatchByInfo:', e);
+    // Show basic modal without detailed stats
+    document.getElementById('mLoading').style.display = 'none';
+    document.getElementById('mBody').style.display = 'block';
+    document.getElementById('mBody').innerHTML = `
+      <div class="modal-head">
+        <button class="modal-x" onclick="closeModal()">✕</button>
+        <div class="modal-comp">${comp}</div>
+        <div class="modal-dt">${dateStr}</div>
+        <div class="modal-teams">
+          <div class="modal-tname ars left">${isHome ? 'ARSENAL' : awayName.toUpperCase()}</div>
+          <div class="modal-sc">
+            <span class="modal-sn">${isHome ? homeScore : awayScore}</span>
+            <span class="modal-ss">—</span>
+            <span class="modal-sn">${isHome ? awayScore : homeScore}</span>
+          </div>
+          <div class="modal-tname right">${!isHome ? 'ARSENAL' : homeName.toUpperCase()}</div>
+        </div>
+        <span class="mbadge ${homeScore > awayScore && isHome || awayScore > homeScore && !isHome ? 'W' : homeScore === awayScore ? 'D' : 'L'}">${isHome && homeScore > awayScore || !isHome && awayScore > homeScore ? 'WIN' : homeScore === awayScore ? 'DRAW' : 'LOSS'}</span>
+      </div>
+      <div class="modal-bd">
+        <div class="msec-title">MATCH INFO</div>
+        <div class="mrow"><span class="mrow-l">Arsenal</span><span class="mrow-r red">${isHome ? '🏠 Home' : '✈️ Away'}</span></div>
+        <div class="mrow"><span class="mrow-l">Detail stats</span><span class="mrow-r" style="color:var(--text-dim)">API limit reached — try later</span></div>
+      </div>
+    `;
+  }
+}
+
 async function openMatch(asMatchId, homeName, awayName, homeScore, awayScore, comp, dateStr, isHome, stage) {
   const modal = document.getElementById('matchModal');
   modal.classList.remove('hidden');
