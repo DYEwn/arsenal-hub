@@ -619,42 +619,6 @@ async function asFetch(path) {
   if (!res.ok) throw new Error(`AllSports error ${res.status}`);
   return res.json();
 }
-
-async function fetchAllSportsMatches() {
-  const matches = [];
-  const configs = [
-    { tid: 17, sid: 76986, comp: 'Premier League' },
-    { tid: 7,  sid: 76953, comp: 'UEFA Champions League' }
-  ];
-  for (const cfg of configs) {
-    for (let page = 0; page < 4; page++) {
-      try {
-        const data = await asFetch(`/api/tournament/${cfg.tid}/season/${cfg.sid}/matches/last/${page}`);
-        const events = data.events || [];
-        if (!events.length) break;
-        for (const e of events) {
-          const home = e.homeTeam?.name || '';
-          const away = e.awayTeam?.name || '';
-          if (home.includes('Arsenal') || away.includes('Arsenal')) {
-            matches.push({
-              id: e.id,
-              competition: cfg.comp,
-              homeTeam: e.homeTeam,
-              awayTeam: e.awayTeam,
-              homeScore: e.homeScore?.current ?? 0,
-              awayScore: e.awayScore?.current ?? 0,
-              startTimestamp: e.startTimestamp,
-              stage: e.roundInfo?.name || ''
-            });
-          }
-        }
-      } catch(e) { break; }
-    }
-  }
-  // Sort by timestamp desc, take top 8
-  return matches.sort((a,b) => b.startTimestamp - a.startTimestamp).slice(0, 8);
-}
-
 async function fetchAll() {
   if (!API_KEY) {
     document.getElementById('apiBanner').classList.remove('hidden');
