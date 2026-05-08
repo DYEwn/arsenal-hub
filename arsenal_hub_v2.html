@@ -442,10 +442,10 @@ header {
   <div class="nav-tabs">
     <div class="nav-inner">
       <button class="nav-tab active" onclick="switchTab('results',this)">⚽ Results & Table</button>
-      <button class="nav-tab" onclick="switchTab('news',this)">📰 News</button>
       <button class="nav-tab" onclick="switchTab('stats',this)">📊 Stats</button>
-      <button class="nav-tab" onclick="switchTab('caption',this)">✍️ Captions</button>
       <button class="nav-tab" onclick="switchTab('players',this)">👤 Players</button>
+      <button class="nav-tab" onclick="switchTab('news',this)">📰 News</button>
+      <button class="nav-tab" onclick="switchTab('caption',this)">✍️ Captions</button>
     </div>
   </div>
 </header>
@@ -648,8 +648,11 @@ async function fetchAll() {
 
   try {
     setLoading(true, 'Loading recent matches...');
-    const matchData = await fdFetch(`/teams/${ARSENAL_ID}/matches?status=FINISHED&limit=100`);
+    const matchData = await fdFetch(`/teams/${ARSENAL_ID}/matches?status=FINISHED&limit=100&season=2025`);
     const matches = matchData.matches || [];
+    // PL only for stats
+    const plMatchData = await fdFetch(`/teams/${ARSENAL_ID}/matches?status=FINISHED&limit=40&season=2025&competitions=${PL_ID}`).catch(()=>({matches:[]}));
+    const plMatches = plMatchData.matches || [];
 
     setLoading(true, 'Loading Premier League table...');
     let standData = null;
@@ -657,15 +660,15 @@ async function fetchAll() {
 
     setLoading(true, 'Loading player stats...');
     let plScorers = null, uclScorers = null;
-    try { plScorers = await fdFetch(`/competitions/${PL_ID}/scorers?season=${SEASON}`); } catch(e) {}
-    try { uclScorers = await fdFetch(`/competitions/${UCL_ID}/scorers?season=${SEASON}`); } catch(e) {}
+    try { plScorers = await fdFetch(`/competitions/${PL_ID}/scorers?season=2025`).catch(()=>null); } catch(e) {}
+    try { uclScorers = await fdFetch(`/competitions/${UCL_ID}/scorers?season=2025`).catch(()=>null); } catch(e) {}
 
     setLoading(true, 'Fetching news...');
     const news = await fetchNews();
 
     renderResults(matches, standData);
     renderNews(news);
-    renderStats(matches, standData);
+    renderStats(plMatches, standData);
     renderPlayers(plScorers, uclScorers);
     renderCaptions(matches, news);
 
@@ -790,9 +793,9 @@ function renderStats(matches, standData) {
   sc.innerHTML = `<div class="section-title">SEASON STATS</div>
     <div class="stats-grid">
       <div class="stat-card"><div class="stat-label">PL POSITION</div><div class="stat-value">${plPos}</div><div class="stat-sub">${plPts} points · ${plPlayed} played</div></div>
-      <div class="stat-card" style="animation-delay:.04s"><div class="stat-label">WIN RATE</div><div class="stat-value">${winRate}%</div><div class="stat-sub">Last ${finished.length} matches</div></div>
-      <div class="stat-card" style="animation-delay:.08s"><div class="stat-label">GOALS SCORED</div><div class="stat-value">${gf}</div><div class="stat-sub">Last ${finished.length} matches</div></div>
-      <div class="stat-card" style="animation-delay:.12s"><div class="stat-label">GOALS CONCEDED</div><div class="stat-value">${ga}</div><div class="stat-sub">Last ${finished.length} matches</div></div>
+      <div class="stat-card" style="animation-delay:.04s"><div class="stat-label">WIN RATE</div><div class="stat-value">${winRate}%</div><div class="stat-sub">PL 2025/26 (${finished.length} matches)</div></div>
+      <div class="stat-card" style="animation-delay:.08s"><div class="stat-label">GOALS SCORED</div><div class="stat-value">${gf}</div><div class="stat-sub">PL 2025/26 (${finished.length} matches)</div></div>
+      <div class="stat-card" style="animation-delay:.12s"><div class="stat-label">GOALS CONCEDED</div><div class="stat-value">${ga}</div><div class="stat-sub">PL 2025/26 (${finished.length} matches)</div></div>
       <div class="stat-card" style="animation-delay:.16s"><div class="stat-label">WINS</div><div class="stat-value">${w}</div><div class="stat-sub">Draws: ${d} · Losses: ${l}</div></div>
       <div class="stat-card" style="animation-delay:.2s"><div class="stat-label">UCL STATUS</div><div class="stat-value" style="font-size:32px;line-height:1.2">FINAL</div><div class="stat-sub">vs PSG · Budapest · 30 May 2026</div></div>
     </div>`;
@@ -815,14 +818,14 @@ function renderPlayers(plScorers, uclScorers) {
   c.innerHTML = `
     <div class="section-title">ARSENAL PLAYERS — SEASON STATS</div>
     <div class="stats-grid" style="margin-bottom:24px;">
-      <div class="stat-card"><div class="stat-label">TOP SCORER</div><div class="stat-value" style="font-size:28px;line-height:1.2;">${topScorer?.player?.name?.split(' ').pop()||'—'}</div><div class="stat-sub">${topScorer?.goals||0} goals this season</div></div>
-      <div class="stat-card"><div class="stat-label">SQUAD GOALS</div><div class="stat-value">${totalGoals}</div><div class="stat-sub">PL + UCL combined</div></div>
-      <div class="stat-card"><div class="stat-label">SQUAD ASSISTS</div><div class="stat-value">${totalAssists}</div><div class="stat-sub">PL + UCL combined</div></div>
+      <div class="stat-card"><div class="stat-label">TOP SCORER</div><div class="stat-value" style="font-size:28px;line-height:1.2;">${topScorer?.player?.name?.split(' ').pop()||'—'}</div><div class="stat-sub">${topScorer?.goals||0} goals · PL 2025/26</div></div>
+      <div class="stat-card"><div class="stat-label">SQUAD GOALS</div><div class="stat-value">${totalGoals}</div><div class="stat-sub">PL + UCL 2025/26</div></div>
+      <div class="stat-card"><div class="stat-label">SQUAD ASSISTS</div><div class="stat-value">${totalAssists}</div><div class="stat-sub">PL + UCL 2025/26</div></div>
     </div>
     <div class="section-title">PREMIER LEAGUE</div>
     <div class="players-grid">${plArsenal.map((s,i)=>`
       <div class="player-card" style="animation-delay:${i*0.05}s">
-        <div class="player-pos">PREMIER LEAGUE 2025/26</div>
+        <div class="player-pos">PL 2025/26</div>
         <div class="player-name">${s.player.name}</div>
         <div class="player-stats">
           <div class="player-stat"><div class="player-stat-val">${s.goals||0}</div><div class="player-stat-label">GOALS</div></div>
