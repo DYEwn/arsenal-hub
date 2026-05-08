@@ -648,7 +648,7 @@ async function fetchAll() {
 
   try {
     setLoading(true, 'Loading recent matches...');
-    const matchData = await fdFetch(`/teams/${ARSENAL_ID}/matches?status=FINISHED&limit=8`);
+    const matchData = await fdFetch(`/teams/${ARSENAL_ID}/matches?status=FINISHED&limit=100`);
     const matches = matchData.matches || [];
 
     setLoading(true, 'Loading Premier League table...');
@@ -686,7 +686,7 @@ function renderResults(matches, standData) {
   if (!matches.length && !standData) return;
   e.style.display = 'none';
 
-  const plHtml = [...matches].reverse().map((m, i) => {
+  const plHtml = [...matches].reverse().slice(0,8).map((m, i) => {
     const isHome = m.homeTeam.id === ARSENAL_ID;
     const opp = isHome ? m.awayTeam.name : m.homeTeam.name;
     const arsScore = isHome ? m.score.fullTime.home : m.score.fullTime.away;
